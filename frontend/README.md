@@ -20,3 +20,4 @@ Modern React-based frontend for QR Code attendance management system.
 ## 🛠️ Installation
 
 1. Navigate to frontend directory:
+// Trigger new build
