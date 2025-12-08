@@ -8,5 +8,8 @@
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "react-scripts": "^5.0.1"
   }
 }
