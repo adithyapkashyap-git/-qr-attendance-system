@@ -22,18 +22,9 @@ const sessionSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  sessionDate: {
-    type: Date,
-    required: true
-  },
-  sessionTime: {
-    type: String,
-    required: true
-  },
   qrCode: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   qrCodeImage: {
     type: String
@@ -45,6 +36,25 @@ const sessionSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     required: true
+  },
+  // Geo-fencing fields
+  location: {
+    latitude: {
+      type: Number,
+      required: true
+    },
+    longitude: {
+      type: Number,
+      required: true
+    },
+    radius: {
+      type: Number,
+      default: 100 // meters
+    }
+  },
+  locationName: {
+    type: String,
+    default: 'Classroom'
   },
   createdAt: {
     type: Date,

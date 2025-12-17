@@ -31,10 +31,17 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     enum: ['present', 'absent'],
     default: 'present'
+  },
+  // Student's location when marking attendance
+  studentLocation: {
+    latitude: Number,
+    longitude: Number
+  },
+  distanceFromClass: {
+    type: Number // in meters
   }
 }, { timestamps: true });
 
-// Prevent duplicate attendance for same session
 attendanceSchema.index({ sessionId: 1, studentId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);
