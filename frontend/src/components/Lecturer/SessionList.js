@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lecturerAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaCheckCircle, FaTimesCircle, FaUsers, FaClock, FaTimes, FaDownload } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaUsers, FaClock, FaTimes, FaDownload, FaCalendarAlt, FaMapMarkerAlt } from 'react-icons/fa';
 import './Lecturer.css';
 
 const SessionList = () => {
@@ -62,9 +62,39 @@ const SessionList = () => {
     setAttendanceList([]);
   };
 
+  // Format date from string (YYYY-MM-DD) or Date object
+  const formatSessionDate = (dateString) => {
+    if (!dateString || dateString === 'N/A') return 'N/A';
+    
+    // If it's already a formatted string like "2025-12-18"
+    if (typeof dateString === 'string' && dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-');
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+    
+    // Otherwise treat as Date object
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  // Format time - already a string like "12:49"
+  const formatSessionTime = (timeString) => {
+    if (!timeString || timeString === 'N/A') return 'N/A';
+    return timeString;
+  };
+
+  // Format date for created/expires timestamps
   const formatDate = (date) =>
-    new Date(date).toLocaleDateString('en-IN', {
-      day: 'numeric',
+    new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
@@ -100,6 +130,7 @@ const SessionList = () => {
     a.download = `attendance_${selectedSession?.subject}_${Date.now()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+    toast.success('Attendance downloaded successfully');
   };
 
   if (loading) {
@@ -155,6 +186,22 @@ const SessionList = () => {
               </div>
 
               <div className="session-details">
+                <div className="detail-item highlight">
+                  <span className="detail-label">
+                    <FaCalendarAlt /> Session Date
+                  </span>
+                  <span className="detail-value primary">
+                    {formatSessionDate(session.sessionDate)}
+                  </span>
+                </div>
+                <div className="detail-item highlight">
+                  <span className="detail-label">
+                    <FaClock /> Session Time
+                  </span>
+                  <span className="detail-value primary">
+                    {formatSessionTime(session.sessionTime)}
+                  </span>
+                </div>
                 <div className="detail-item">
                   <span className="detail-label">Department</span>
                   <span className="detail-value">{session.department}</span>
@@ -164,27 +211,29 @@ const SessionList = () => {
                   <span className="detail-value">{session.semester}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-label">Session Date</span>
-                  <span className="detail-value">
-                    {session.sessionDate ? formatDate(session.sessionDate) : 'N/A'}
+                  <span className="detail-label">
+                    <FaMapMarkerAlt /> Location
                   </span>
+                  <span className="detail-value">{session.locationName || 'N/A'}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="detail-label">Session Time</span>
-                  <span className="detail-value">
-                    {session.sessionTime || 'N/A'}
-                  </span>
+                  <span className="detail-label">Radius</span>
+                  <span className="detail-value">{session.location?.radius || 100}m</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Created</span>
                   <span className="detail-value">
-                    {formatDate(session.createdAt)} {formatTime(session.createdAt)}
+                    {formatDate(session.createdAt)}
+                    <br />
+                    <small>{formatTime(session.createdAt)}</small>
                   </span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Expires</span>
                   <span className="detail-value">
-                    {formatDate(session.expiresAt)} {formatTime(session.expiresAt)}
+                    {formatDate(session.expiresAt)}
+                    <br />
+                    <small>{formatTime(session.expiresAt)}</small>
                   </span>
                 </div>
               </div>
@@ -195,7 +244,7 @@ const SessionList = () => {
                     <img src={session.qrCodeImage} alt="QR Code" />
                   </div>
                   <div className="qr-code-text">
-                    {session.qrCode}
+                    {session.qrCode.substring(0, 30)}...
                   </div>
                 </div>
               )}
@@ -234,8 +283,13 @@ const SessionList = () => {
                   <FaUsers /> Attendance Details
                 </h3>
                 {selectedSession && (
-                  <p>
-                    {selectedSession.subject} - {selectedSession.sessionName}
+                  <p className="modal-session-info">
+                    <strong>{selectedSession.subject}</strong> - {selectedSession.sessionName}
+                    <br />
+                    <small>
+                      <FaCalendarAlt /> {formatSessionDate(selectedSession.sessionDate)} | 
+                      <FaClock /> {formatSessionTime(selectedSession.sessionTime)}
+                    </small>
                   </p>
                 )}
               </div>
@@ -277,6 +331,7 @@ const SessionList = () => {
                           <th>USN</th>
                           <th>Email</th>
                           <th>Marked At</th>
+                          <th>Distance</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -292,6 +347,9 @@ const SessionList = () => {
                             <td className="marked-time">
                               {formatDate(record.markedAt)}<br />
                               <span className="time-text">{formatTime(record.markedAt)}</span>
+                            </td>
+                            <td className="distance-cell">
+                              {record.distanceFromClass ? `${record.distanceFromClass}m` : 'N/A'}
                             </td>
                             <td>
                               <span className={`status-chip ${record.status}`}>

@@ -22,6 +22,15 @@ const sessionSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Session Date and Time
+  sessionDate: {
+    type: String,
+    required: true
+  },
+  sessionTime: {
+    type: String,
+    required: true
+  },
   qrCode: {
     type: String,
     required: true

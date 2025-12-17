@@ -1408,3 +1408,65 @@
     display: none;
   }
 }
+/* Highlight Session Date and Time */
+.detail-item.highlight {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  padding: 12px;
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+}
+
+.detail-value.primary {
+  color: #1e40af;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.detail-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-value small {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+/* Modal Session Info */
+.modal-session-info {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.modal-session-info small {
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.modal-session-info small svg {
+  margin-right: 4px;
+}
+
+/* Distance Cell */
+.distance-cell {
+  font-weight: 600;
+  color: #10b981;
+  font-size: 14px;
+}
+
+/* QR Code Text */
+.qr-code-text {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #6b7280;
+  word-break: break-all;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-top: 10px;
+}

@@ -10,7 +10,17 @@ const Lecturer = require('../models/Lecturer');
 // Create session with geo-fencing
 router.post('/create-session', authMiddleware, isLecturer, async (req, res) => {
   try {
-    const { subject, sessionName, department, semester, duration, location, locationName } = req.body;
+    const { 
+      subject, 
+      sessionName, 
+      department, 
+      semester, 
+      duration, 
+      sessionDate,
+      sessionTime,
+      location, 
+      locationName 
+    } = req.body;
 
     const qrData = uuidv4();
     const expiresAt = new Date(Date.now() + (duration || 10) * 60 * 1000);
@@ -22,6 +32,8 @@ router.post('/create-session', authMiddleware, isLecturer, async (req, res) => {
       sessionName,
       department,
       semester,
+      sessionDate: sessionDate || new Date().toISOString().split('T')[0],
+      sessionTime: sessionTime || new Date().toTimeString().slice(0, 5),
       qrCode: qrData,
       qrCodeImage,
       expiresAt,
@@ -184,6 +196,7 @@ router.get('/exam-eligibility/:semester/:department', authMiddleware, isLecturer
   }
 });
 
+// Get all sessions
 router.get('/sessions', authMiddleware, isLecturer, async (req, res) => {
   try {
     const sessions = await Session.find({ lecturerId: req.user.id }).sort({ createdAt: -1 });
@@ -193,6 +206,7 @@ router.get('/sessions', authMiddleware, isLecturer, async (req, res) => {
   }
 });
 
+// Get session attendance
 router.get('/session/:sessionId/attendance', authMiddleware, isLecturer, async (req, res) => {
   try {
     const attendance = await Attendance.find({ sessionId: req.params.sessionId })
@@ -204,6 +218,7 @@ router.get('/session/:sessionId/attendance', authMiddleware, isLecturer, async (
   }
 });
 
+// Deactivate session
 router.put('/session/:sessionId/deactivate', authMiddleware, isLecturer, async (req, res) => {
   try {
     const session = await Session.findOneAndUpdate(
@@ -216,6 +231,48 @@ router.put('/session/:sessionId/deactivate', authMiddleware, isLecturer, async (
       return res.status(404).json({ message: 'Session not found' });
     }
     res.json({ message: 'Session deactivated', session });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get lecturer profile
+router.get('/profile', authMiddleware, isLecturer, async (req, res) => {
+  try {
+    const lecturer = await Lecturer.findById(req.user.id).select('-password');
+    res.json(lecturer);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get lecturer statistics
+router.get('/statistics', authMiddleware, isLecturer, async (req, res) => {
+  try {
+    const totalSessions = await Session.countDocuments({ lecturerId: req.user.id });
+    const activeSessions = await Session.countDocuments({ 
+      lecturerId: req.user.id, 
+      isActive: true 
+    });
+
+    const sessions = await Session.find({ lecturerId: req.user.id });
+    const sessionIds = sessions.map(s => s._id);
+
+    const totalAttendance = await Attendance.countDocuments({
+      sessionId: { $in: sessionIds }
+    });
+
+    // Get unique students who attended
+    const uniqueStudents = await Attendance.distinct('studentId', {
+      sessionId: { $in: sessionIds }
+    });
+
+    res.json({
+      totalSessions,
+      activeSessions,
+      totalAttendance,
+      uniqueStudents: uniqueStudents.length
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
