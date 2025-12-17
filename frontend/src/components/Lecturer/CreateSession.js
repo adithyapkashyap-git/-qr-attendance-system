@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lecturerAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaPlus, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaPlus, FaMapMarkerAlt, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import './Lecturer.css';
 
@@ -12,6 +12,8 @@ const CreateSession = ({ onSessionCreated }) => {
     department: '',
     semester: '',
     duration: '10',
+    sessionDate: '',
+    sessionTime: '',
     locationName: '',
     latitude: '',
     longitude: '',
@@ -21,6 +23,20 @@ const CreateSession = ({ onSessionCreated }) => {
   const [createdSession, setCreatedSession] = useState(null);
   const [dynamicQR, setDynamicQR] = useState(null);
   const [qrTimer, setQrTimer] = useState(5);
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  // Set default date and time to current
+  useEffect(() => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().slice(0, 5);
+    
+    setFormData(prev => ({
+      ...prev,
+      sessionDate: dateStr,
+      sessionTime: timeStr
+    }));
+  }, []);
 
   useEffect(() => {
     if (createdSession && createdSession.isActive) {
@@ -53,7 +69,9 @@ const CreateSession = ({ onSessionCreated }) => {
       return;
     }
 
-    toast.info('Getting your location...');
+    setLocationLoading(true);
+    toast.info('📍 Getting your location...');
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setFormData(prev => ({
@@ -61,10 +79,17 @@ const CreateSession = ({ onSessionCreated }) => {
           latitude: position.coords.latitude.toFixed(6),
           longitude: position.coords.longitude.toFixed(6)
         }));
-        toast.success('Location captured successfully');
+        setLocationLoading(false);
+        toast.success('✅ Location captured successfully');
       },
       (error) => {
-        toast.error('Unable to get location. Please enter manually.');
+        setLocationLoading(false);
+        toast.error('❌ Unable to get location. Please enter manually.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     );
   };
@@ -77,7 +102,7 @@ const CreateSession = ({ onSessionCreated }) => {
     e.preventDefault();
     
     if (!formData.latitude || !formData.longitude) {
-      toast.error('Please provide classroom location');
+      toast.error('❌ Please provide classroom location');
       return;
     }
 
@@ -90,6 +115,8 @@ const CreateSession = ({ onSessionCreated }) => {
         department: formData.department,
         semester: parseInt(formData.semester),
         duration: parseInt(formData.duration),
+        sessionDate: formData.sessionDate,
+        sessionTime: formData.sessionTime,
         location: {
           latitude: parseFloat(formData.latitude),
           longitude: parseFloat(formData.longitude),
@@ -99,9 +126,14 @@ const CreateSession = ({ onSessionCreated }) => {
       };
 
       const response = await lecturerAPI.createSession(sessionData);
-      toast.success('Session created successfully!');
+      toast.success('✅ Session created successfully!');
       setCreatedSession(response.data.session);
       setDynamicQR({ qrCode: response.data.session.qrCode, qrCodeImage: response.data.session.qrCodeImage });
+      
+      // Reset form
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().slice(0, 5);
       
       setFormData({
         subject: '',
@@ -109,15 +141,17 @@ const CreateSession = ({ onSessionCreated }) => {
         department: '',
         semester: '',
         duration: '10',
+        sessionDate: dateStr,
+        sessionTime: timeStr,
         locationName: '',
         latitude: '',
         longitude: '',
         radius: '100'
       });
       
-      onSessionCreated();
+      if (onSessionCreated) onSessionCreated();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create session');
+      toast.error(error.response?.data?.message || '❌ Failed to create session');
     } finally {
       setLoading(false);
     }
@@ -125,12 +159,13 @@ const CreateSession = ({ onSessionCreated }) => {
 
   return (
     <div className="create-session">
-      <h2>Create New Session</h2>
+      <h2 className="session-title fade-in">Create New Session</h2>
 
       <form onSubmit={handleSubmit} className="session-form">
-        <div className="form-row">
+        {/* Subject and Session Name */}
+        <div className="form-row slide-up" style={{ animationDelay: '0.1s' }}>
           <div className="form-group">
-            <label>Subject</label>
+            <label>Subject <span className="required">*</span></label>
             <input
               type="text"
               name="subject"
@@ -138,11 +173,12 @@ const CreateSession = ({ onSessionCreated }) => {
               onChange={handleChange}
               placeholder="e.g., Data Structures"
               required
+              className="animated-input"
             />
           </div>
 
           <div className="form-group">
-            <label>Session Name</label>
+            <label>Session Name <span className="required">*</span></label>
             <input
               type="text"
               name="sessionName"
@@ -150,14 +186,22 @@ const CreateSession = ({ onSessionCreated }) => {
               onChange={handleChange}
               placeholder="e.g., Lecture 1, Lab Session"
               required
+              className="animated-input"
             />
           </div>
         </div>
 
-        <div className="form-row">
+        {/* Department and Semester */}
+        <div className="form-row slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="form-group">
-            <label>Department</label>
-            <select name="department" value={formData.department} onChange={handleChange} required>
+            <label>Department <span className="required">*</span></label>
+            <select 
+              name="department" 
+              value={formData.department} 
+              onChange={handleChange} 
+              required
+              className="animated-select"
+            >
               <option value="">Select Department</option>
               <option value="CSE">Computer Science Engineering</option>
               <option value="ISE">Information Science Engineering</option>
@@ -168,8 +212,14 @@ const CreateSession = ({ onSessionCreated }) => {
           </div>
 
           <div className="form-group">
-            <label>Semester</label>
-            <select name="semester" value={formData.semester} onChange={handleChange} required>
+            <label>Semester <span className="required">*</span></label>
+            <select 
+              name="semester" 
+              value={formData.semester} 
+              onChange={handleChange} 
+              required
+              className="animated-select"
+            >
               <option value="">Select Semester</option>
               {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
                 <option key={sem} value={sem}>Semester {sem}</option>
@@ -178,22 +228,52 @@ const CreateSession = ({ onSessionCreated }) => {
           </div>
         </div>
 
-        <div className="form-group">
-          <label>Session Duration (minutes)</label>
-          <input
-            type="number"
-            name="duration"
-            value={formData.duration}
-            onChange={handleChange}
-            min="5"
-            max="180"
-            required
-          />
+        {/* Date, Time and Duration */}
+        <div className="form-row slide-up" style={{ animationDelay: '0.3s' }}>
+          <div className="form-group">
+            <label><FaCalendarAlt /> Session Date <span className="required">*</span></label>
+            <input
+              type="date"
+              name="sessionDate"
+              value={formData.sessionDate}
+              onChange={handleChange}
+              required
+              className="animated-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label><FaClock /> Session Time <span className="required">*</span></label>
+            <input
+              type="time"
+              name="sessionTime"
+              value={formData.sessionTime}
+              onChange={handleChange}
+              required
+              className="animated-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Duration (minutes) <span className="required">*</span></label>
+            <input
+              type="number"
+              name="duration"
+              value={formData.duration}
+              onChange={handleChange}
+              min="5"
+              max="180"
+              required
+              className="animated-input"
+            />
+          </div>
         </div>
 
         {/* Geo-fencing Section */}
-        <div className="location-section">
-          <h3><FaMapMarkerAlt /> Classroom Location (Geo-fencing)</h3>
+        <div className="location-section slide-up" style={{ animationDelay: '0.4s' }}>
+          <h3 className="section-header">
+            <FaMapMarkerAlt className="pulse-icon" /> Classroom Location (Geo-fencing)
+          </h3>
           
           <div className="form-group">
             <label>Location Name</label>
@@ -203,12 +283,13 @@ const CreateSession = ({ onSessionCreated }) => {
               value={formData.locationName}
               onChange={handleChange}
               placeholder="e.g., Room 301, Lab 2"
+              className="animated-input"
             />
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Latitude</label>
+              <label>Latitude <span className="required">*</span></label>
               <input
                 type="number"
                 step="any"
@@ -217,11 +298,12 @@ const CreateSession = ({ onSessionCreated }) => {
                 onChange={handleChange}
                 placeholder="13.0827"
                 required
+                className="animated-input"
               />
             </div>
 
             <div className="form-group">
-              <label>Longitude</label>
+              <label>Longitude <span className="required">*</span></label>
               <input
                 type="number"
                 step="any"
@@ -230,12 +312,13 @@ const CreateSession = ({ onSessionCreated }) => {
                 onChange={handleChange}
                 placeholder="77.5877"
                 required
+                className="animated-input"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Allowed Radius (meters)</label>
+            <label>Allowed Radius (meters) <span className="required">*</span></label>
             <input
               type="number"
               name="radius"
@@ -244,31 +327,67 @@ const CreateSession = ({ onSessionCreated }) => {
               min="10"
               max="500"
               required
+              className="animated-input"
             />
-            <small>Students must be within this radius to mark attendance</small>
+            <small className="helper-text">Students must be within this radius to mark attendance</small>
           </div>
 
-          <button type="button" onClick={getCurrentLocation} className="location-btn">
-            <FaMapMarkerAlt /> Use Current Location
+          <button 
+            type="button" 
+            onClick={getCurrentLocation} 
+            className="location-btn"
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <>
+                <div className="spinner-small"></div>
+                Getting Location...
+              </>
+            ) : (
+              <>
+                <FaMapMarkerAlt className="btn-icon" /> Use Current Location
+              </>
+            )}
           </button>
         </div>
 
         <button type="submit" className="create-btn" disabled={loading}>
-          <FaPlus />
-          {loading ? 'Creating...' : 'Create Session'}
+          {loading ? (
+            <>
+              <div className="spinner-small"></div>
+              Creating...
+            </>
+          ) : (
+            <>
+              <FaPlus className="btn-icon" />
+              Create Session
+            </>
+          )}
         </button>
       </form>
 
       {/* Dynamic QR Code Display */}
       {createdSession && dynamicQR && (
-        <div className="dynamic-qr-display">
-          <h3>🔄 Dynamic QR Code (Refreshing every 5 seconds)</h3>
-          <div className="qr-timer">Next refresh in: <strong>{qrTimer}s</strong></div>
-          <div className="qr-code-container">
-            <QRCode value={dynamicQR.qrCode} size={256} />
-            <p className="qr-code-text">Session: {createdSession.sessionName}</p>
-            <p className="qr-location">📍 {createdSession.locationName}</p>
+        <div className="dynamic-qr-display fade-in-scale">
+          <div className="qr-header">
+            <h3>🔄 Dynamic QR Code</h3>
+            <span className="qr-timer-badge">Refreshing in: {qrTimer}s</span>
           </div>
+          
+          <div className="qr-code-container">
+            <div className="qr-code-wrapper">
+              <QRCode value={dynamicQR.qrCode} size={256} className="qr-code-animated" />
+            </div>
+            <div className="qr-info">
+              <p className="qr-session-name">📚 {createdSession.sessionName}</p>
+              <p className="qr-subject">{createdSession.subject}</p>
+              <p className="qr-location">📍 {createdSession.locationName}</p>
+              <p className="qr-time">
+                🕐 {formData.sessionDate} at {formData.sessionTime}
+              </p>
+            </div>
+          </div>
+          
           <button 
             onClick={() => setCreatedSession(null)} 
             className="close-qr-btn"
