@@ -239,11 +239,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr-att
 console.log('🔄 Connecting to MongoDB...');
 console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
+// ✅ FIXED: Removed deprecated options
 mongoose
-  .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB Connected Successfully');
     console.log(`📊 Database: ${mongoose.connection.name}`);
