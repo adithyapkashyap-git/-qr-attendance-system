@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lecturerAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaPlus, FaMapMarkerAlt, FaCalendarAlt, FaClock } from 'react-icons/fa';
+import { FaPlus, FaMapMarkerAlt, FaCalendarAlt, FaClock, FaSync } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import './Lecturer.css';
 
@@ -14,6 +14,7 @@ const CreateSession = ({ onSessionCreated }) => {
     duration: '10',
     sessionDate: '',
     sessionTime: '',
+    qrRefreshInterval: '5',
     locationName: '',
     latitude: '',
     longitude: '',
@@ -25,7 +26,6 @@ const CreateSession = ({ onSessionCreated }) => {
   const [qrTimer, setQrTimer] = useState(5);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  // Set default date and time to current
   useEffect(() => {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
@@ -40,20 +40,25 @@ const CreateSession = ({ onSessionCreated }) => {
 
   useEffect(() => {
     if (createdSession && createdSession.isActive) {
-      // Refresh QR code every 5 seconds
+      const refreshInterval = (createdSession.qrRefreshInterval || 5) * 1000;
+      
+      // Refresh QR code
       const interval = setInterval(async () => {
         try {
           const response = await lecturerAPI.refreshQRCode(createdSession._id);
           setDynamicQR(response.data);
-          setQrTimer(5);
+          setQrTimer(createdSession.qrRefreshInterval || 5);
         } catch (error) {
           console.error('Failed to refresh QR code');
         }
-      }, 5000);
+      }, refreshInterval);
 
       // Countdown timer
       const countdown = setInterval(() => {
-        setQrTimer(prev => prev > 0 ? prev - 1 : 5);
+        setQrTimer(prev => {
+          if (prev > 1) return prev - 1;
+          return createdSession.qrRefreshInterval || 5;
+        });
       }, 1000);
 
       return () => {
@@ -117,6 +122,7 @@ const CreateSession = ({ onSessionCreated }) => {
         duration: parseInt(formData.duration),
         sessionDate: formData.sessionDate,
         sessionTime: formData.sessionTime,
+        qrRefreshInterval: parseInt(formData.qrRefreshInterval),
         location: {
           latitude: parseFloat(formData.latitude),
           longitude: parseFloat(formData.longitude),
@@ -129,6 +135,7 @@ const CreateSession = ({ onSessionCreated }) => {
       toast.success('✅ Session created successfully!');
       setCreatedSession(response.data.session);
       setDynamicQR({ qrCode: response.data.session.qrCode, qrCodeImage: response.data.session.qrCodeImage });
+      setQrTimer(response.data.session.qrRefreshInterval || 5);
       
       // Reset form
       const now = new Date();
@@ -143,6 +150,7 @@ const CreateSession = ({ onSessionCreated }) => {
         duration: '10',
         sessionDate: dateStr,
         sessionTime: timeStr,
+        qrRefreshInterval: '5',
         locationName: '',
         latitude: '',
         longitude: '',
@@ -269,6 +277,28 @@ const CreateSession = ({ onSessionCreated }) => {
           </div>
         </div>
 
+        {/* QR Refresh Interval */}
+        <div className="form-group slide-up" style={{ animationDelay: '0.35s' }}>
+          <label><FaSync className="rotate-icon" /> QR Code Refresh Interval (seconds) <span className="required">*</span></label>
+          <select
+            name="qrRefreshInterval"
+            value={formData.qrRefreshInterval}
+            onChange={handleChange}
+            required
+            className="animated-select qr-interval-select"
+          >
+            <option value="3">3 seconds (Very Fast)</option>
+            <option value="5">5 seconds (Fast)</option>
+            <option value="10">10 seconds (Medium)</option>
+            <option value="15">15 seconds (Slow)</option>
+            <option value="30">30 seconds (Very Slow)</option>
+            <option value="60">60 seconds (1 minute)</option>
+          </select>
+          <small className="helper-text">
+            ⚠️ Shorter intervals provide better security but may affect performance
+          </small>
+        </div>
+
         {/* Geo-fencing Section */}
         <div className="location-section slide-up" style={{ animationDelay: '0.4s' }}>
           <h3 className="section-header">
@@ -371,7 +401,10 @@ const CreateSession = ({ onSessionCreated }) => {
         <div className="dynamic-qr-display fade-in-scale">
           <div className="qr-header">
             <h3>🔄 Dynamic QR Code</h3>
-            <span className="qr-timer-badge">Refreshing in: {qrTimer}s</span>
+            <div className="qr-timer-info">
+              <span className="qr-timer-badge">Refreshing in: <strong>{qrTimer}s</strong></span>
+              <span className="qr-interval-info">Interval: {createdSession.qrRefreshInterval}s</span>
+            </div>
           </div>
           
           <div className="qr-code-container">

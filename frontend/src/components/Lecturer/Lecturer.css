@@ -1470,3 +1470,179 @@
   border-radius: 6px;
   margin-top: 10px;
 }
+/* QR Interval Select */
+.qr-interval-select {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 2px solid #3b82f6;
+  font-weight: 600;
+}
+
+.rotate-icon {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* QR Timer Info */
+.qr-timer-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.qr-interval-info {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* QR Refresh Timer in Session Card */
+.qr-refresh-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.refresh-interval-badge {
+  background: white;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #3b82f6;
+  margin-left: 8px;
+}
+
+.qr-code-display img {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.qr-code-display img:hover {
+  transform: scale(1.05);
+}
+/* ============== DYNAMIC QR CODE STYLES ============== */
+
+/* Rotating Sync Icon */
+.rotate-icon {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* QR Refresh Timer */
+.qr-refresh-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: #1e40af;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  animation: slideUp 0.5s ease-out;
+}
+
+.qr-refresh-timer strong {
+  color: #1e3a8a;
+  font-size: 18px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+}
+
+.refresh-interval-badge {
+  background: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #3b82f6;
+  margin-left: 8px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* QR Code Animation */
+.qr-code-animated {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: qrFadeIn 0.5s ease-in-out;
+}
+
+@keyframes qrFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.qr-code-display {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 12px;
+}
+
+.qr-code-display img {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+}
+
+.qr-code-display img:hover {
+  transform: scale(1.08);
+}
+
+/* QR Section Container */
+.qr-section {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  padding: 20px;
+  border-radius: 16px;
+  margin: 20px 0;
+  border: 2px solid #bfdbfe;
+}
+
+.qr-code-text {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #6b7280;
+  word-break: break-all;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  text-align: center;
+  border: 1px dashed #cbd5e1;
+}

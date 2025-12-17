@@ -22,7 +22,6 @@ const sessionSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  // Session Date and Time
   sessionDate: {
     type: String,
     required: true
@@ -46,7 +45,11 @@ const sessionSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  // Geo-fencing fields
+  // QR Code refresh interval in seconds
+  qrRefreshInterval: {
+    type: Number,
+    default: 5 // Default 5 seconds
+  },
   location: {
     latitude: {
       type: Number,
@@ -58,7 +61,7 @@ const sessionSchema = new mongoose.Schema({
     },
     radius: {
       type: Number,
-      default: 100 // meters
+      default: 100
     }
   },
   locationName: {

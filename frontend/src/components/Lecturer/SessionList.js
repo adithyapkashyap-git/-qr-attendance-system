@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lecturerAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaCheckCircle, FaTimesCircle, FaUsers, FaClock, FaTimes, FaDownload, FaCalendarAlt, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaUsers, FaClock, FaTimes, FaDownload, FaCalendarAlt, FaMapMarkerAlt, FaSync } from 'react-icons/fa';
 import './Lecturer.css';
 
 const SessionList = () => {
@@ -11,10 +11,58 @@ const SessionList = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [attendanceList, setAttendanceList] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  
+  // ✅ Dynamic QR Code states
+  const [dynamicQRs, setDynamicQRs] = useState({});
+  const [qrTimers, setQrTimers] = useState({});
 
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  // ✅ Dynamic QR Code Refresh Effect
+  useEffect(() => {
+    if (sessions.length === 0) return;
+
+    const intervals = {};
+    const countdowns = {};
+
+    sessions.forEach(session => {
+      if (session.isActive) {
+        const refreshInterval = (session.qrRefreshInterval || 5) * 1000;
+        
+        // Initialize timer
+        setQrTimers(prev => ({ ...prev, [session._id]: session.qrRefreshInterval || 5 }));
+
+        // Refresh QR code
+        intervals[session._id] = setInterval(async () => {
+          try {
+            const response = await lecturerAPI.refreshQRCode(session._id);
+            setDynamicQRs(prev => ({
+              ...prev,
+              [session._id]: response.data
+            }));
+            setQrTimers(prev => ({ ...prev, [session._id]: session.qrRefreshInterval || 5 }));
+          } catch (error) {
+            console.error('Failed to refresh QR code for session:', session._id);
+          }
+        }, refreshInterval);
+
+        // Countdown timer
+        countdowns[session._id] = setInterval(() => {
+          setQrTimers(prev => ({
+            ...prev,
+            [session._id]: prev[session._id] > 1 ? prev[session._id] - 1 : (session.qrRefreshInterval || 5)
+          }));
+        }, 1000);
+      }
+    });
+
+    return () => {
+      Object.values(intervals).forEach(interval => clearInterval(interval));
+      Object.values(countdowns).forEach(countdown => clearInterval(countdown));
+    };
+  }, [sessions]);
 
   const fetchSessions = async () => {
     try {
@@ -62,11 +110,9 @@ const SessionList = () => {
     setAttendanceList([]);
   };
 
-  // Format date from string (YYYY-MM-DD) or Date object
   const formatSessionDate = (dateString) => {
     if (!dateString || dateString === 'N/A') return 'N/A';
     
-    // If it's already a formatted string like "2025-12-18"
     if (typeof dateString === 'string' && dateString.includes('-')) {
       const [year, month, day] = dateString.split('-');
       const date = new Date(year, month - 1, day);
@@ -77,7 +123,6 @@ const SessionList = () => {
       });
     }
     
-    // Otherwise treat as Date object
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -85,13 +130,11 @@ const SessionList = () => {
     });
   };
 
-  // Format time - already a string like "12:49"
   const formatSessionTime = (timeString) => {
     if (!timeString || timeString === 'N/A') return 'N/A';
     return timeString;
   };
 
-  // Format date for created/expires timestamps
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -108,7 +151,7 @@ const SessionList = () => {
   const downloadCSV = () => {
     if (attendanceList.length === 0) return;
 
-    const headers = ['S.No', 'Name', 'USN', 'Email', 'Marked At', 'Status'];
+    const headers = ['S.No', 'Name', 'USN', 'Email', 'Marked At', 'Distance', 'Status'];
     const csvContent = [
       headers.join(','),
       ...attendanceList.map((record, index) => 
@@ -118,6 +161,7 @@ const SessionList = () => {
           record.usn,
           record.studentId?.email || 'N/A',
           `${formatDate(record.markedAt)} ${formatTime(record.markedAt)}`,
+          record.distanceFromClass ? `${record.distanceFromClass}m` : 'N/A',
           record.status
         ].join(',')
       )
@@ -238,13 +282,30 @@ const SessionList = () => {
                 </div>
               </div>
 
-              {session.isActive && session.qrCodeImage && (
+              {/* ✅ UPDATED QR SECTION WITH DYNAMIC REFRESH */}
+              {session.isActive && (
                 <div className="qr-section">
-                  <div className="qr-code-display">
-                    <img src={session.qrCodeImage} alt="QR Code" />
+                  {/* QR Refresh Timer */}
+                  <div className="qr-refresh-timer">
+                    <FaSync className="rotate-icon" />
+                    Refreshing in: <strong>{qrTimers[session._id] || session.qrRefreshInterval || 5}s</strong>
+                    <span className="refresh-interval-badge">
+                      Every {session.qrRefreshInterval || 5}s
+                    </span>
                   </div>
+                  
+                  {/* Dynamic QR Code Image */}
+                  <div className="qr-code-display">
+                    <img 
+                      src={dynamicQRs[session._id]?.qrCodeImage || session.qrCodeImage} 
+                      alt="QR Code" 
+                      className="qr-code-animated"
+                    />
+                  </div>
+                  
+                  {/* QR Code Text */}
                   <div className="qr-code-text">
-                    {session.qrCode.substring(0, 30)}...
+                    {(dynamicQRs[session._id]?.qrCode || session.qrCode).substring(0, 30)}...
                   </div>
                 </div>
               )}

@@ -18,6 +18,7 @@ router.post('/create-session', authMiddleware, isLecturer, async (req, res) => {
       duration, 
       sessionDate,
       sessionTime,
+      qrRefreshInterval,
       location, 
       locationName 
     } = req.body;
@@ -34,6 +35,7 @@ router.post('/create-session', authMiddleware, isLecturer, async (req, res) => {
       semester,
       sessionDate: sessionDate || new Date().toISOString().split('T')[0],
       sessionTime: sessionTime || new Date().toTimeString().slice(0, 5),
+      qrRefreshInterval: qrRefreshInterval || 5,
       qrCode: qrData,
       qrCodeImage,
       expiresAt,
