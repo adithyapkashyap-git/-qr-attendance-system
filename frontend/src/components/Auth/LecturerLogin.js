@@ -5,12 +5,12 @@ import { toast } from 'react-toastify';
 import './Auth.css';
 
 const LecturerLogin = () => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     employeeId: '',
-    password: '',
+    password: ''
   });
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,17 +18,25 @@ const LecturerLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.employeeId || !formData.password) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await authAPI.lecturerLogin(formData);
+      const response = await authAPI.loginLecturer(formData.employeeId, formData.password);
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('role', 'lecturer');
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      
+
       toast.success('Login successful!');
       navigate('/lecturer/dashboard');
     } catch (error) {
+      console.error('Login error:', error);
       toast.error(error.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -39,21 +47,22 @@ const LecturerLogin = () => {
     <div className="auth-container">
       <div className="auth-card">
         <h2 className="auth-title">Lecturer Login</h2>
+
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Employee ID</label>
+            <label>Employee ID *</label>
             <input
               type="text"
               name="employeeId"
               value={formData.employeeId}
               onChange={handleChange}
-              placeholder="Enter your Employee ID"
+              placeholder="e.g., EMP001"
               required
             />
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label>Password *</label>
             <input
               type="password"
               name="password"
@@ -64,17 +73,14 @@ const LecturerLogin = () => {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="auth-btn" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
-        </form>
 
-        <p className="auth-link">
-          Don't have an account? <Link to="/lecturer/register">Register here</Link>
-        </p>
-        <p className="auth-link">
-          <Link to="/">← Back to Home</Link>
-        </p>
+          <p className="auth-footer">
+            Don't have an account? <Link to="/lecturer/register">Register here</Link>
+          </p>
+        </form>
       </div>
     </div>
   );

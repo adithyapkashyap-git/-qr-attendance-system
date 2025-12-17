@@ -26,20 +26,28 @@ const StudentRegister = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email) {
-      toast.error('Please enter your name and email');
+    // ✅ VALIDATION: Check ALL required fields
+    if (!formData.name || !formData.usn || !formData.email || !formData.password || !formData.department || !formData.semester) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await authAPI.sendStudentOTP({ 
-        email: formData.email, 
-        name: formData.name 
-      });
+      console.log('📧 Sending OTP with data:', { email: formData.email, name: formData.name });
+      
+      await authAPI.sendStudentOTP(formData.email, formData.name);
+      
+      console.log('✅ OTP sent successfully');
       toast.success('OTP sent to your email!');
       setStep(2);
     } catch (error) {
+      console.error('❌ Send OTP error:', error);
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
@@ -49,17 +57,35 @@ const StudentRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.otp) {
-      toast.error('Please enter OTP');
+    if (!formData.otp || formData.otp.length !== 6) {
+      toast.error('Please enter a valid 6-digit OTP');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await authAPI.studentRegister({
-        ...formData,
-        semester: parseInt(formData.semester),
+      console.log('🔍 Submitting registration with ALL data:', {
+        name: formData.name,
+        usn: formData.usn,
+        email: formData.email,
+        department: formData.department,
+        semester: formData.semester,
+        otp: formData.otp,
+        hasPassword: !!formData.password
       });
+
+      const response = await authAPI.registerStudent({
+        name: formData.name,
+        usn: formData.usn,
+        email: formData.email,
+        password: formData.password,
+        department: formData.department,
+        semester: parseInt(formData.semester),
+        otp: formData.otp
+      });
+
+      console.log('✅ Registration successful:', response.data);
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('role', 'student');
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -67,7 +93,9 @@ const StudentRegister = () => {
       toast.success('Registration successful!');
       navigate('/student/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      console.error('❌ Registration error:', error);
+      console.error('Error details:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,13 +104,10 @@ const StudentRegister = () => {
   const handleResendOTP = async () => {
     setLoading(true);
     try {
-      await authAPI.sendStudentOTP({ 
-        email: formData.email, 
-        name: formData.name 
-      });
+      await authAPI.sendStudentOTP(formData.email, formData.name);
       toast.success('OTP resent to your email!');
     } catch (error) {
-      toast.error('Failed to resend OTP');
+      toast.error(error.response?.data?.message || 'Failed to resend OTP');
     } finally {
       setLoading(false);
     }
@@ -105,8 +130,11 @@ const StudentRegister = () => {
 
                 {/* Progress Bar */}
                 <div className="mb-4">
-                  <div className="progress-bar-container">
-                    <div className="progress-bar-fill" style={{ width: step === 1 ? '50%' : '100%' }}></div>
+                  <div className="progress" style={{ height: '8px' }}>
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: step === 1 ? '50%' : '100%' }}
+                    ></div>
                   </div>
                   <div className="d-flex justify-content-between mt-2">
                     <small className={step >= 1 ? 'text-primary fw-bold' : 'text-muted'}>
@@ -188,11 +216,11 @@ const StudentRegister = () => {
                           required
                         >
                           <option value="">Select Department</option>
-                          <option value="CSE">Computer Science Engineering</option>
-                          <option value="ISE">Information Science Engineering</option>
-                          <option value="ECE">Electronics & Communication</option>
-                          <option value="ME">Mechanical Engineering</option>
-                          <option value="CE">Civil Engineering</option>
+                          <option value="Computer Science Engineering">Computer Science Engineering</option>
+                          <option value="Information Science Engineering">Information Science Engineering</option>
+                          <option value="Electronics & Communication">Electronics & Communication</option>
+                          <option value="Mechanical Engineering">Mechanical Engineering</option>
+                          <option value="Civil Engineering">Civil Engineering</option>
                         </select>
                       </div>
                     </div>
@@ -230,7 +258,8 @@ const StudentRegister = () => {
                           className="form-control"
                           value={formData.password}
                           onChange={handleChange}
-                          placeholder="Create a password"
+                          placeholder="Create a password (min 6 characters)"
+                          minLength="6"
                           required
                         />
                       </div>
@@ -268,11 +297,13 @@ const StudentRegister = () => {
                       <input
                         type="text"
                         name="otp"
-                        className="form-control text-center fs-4 letter-spacing"
+                        className="form-control text-center fs-4"
                         value={formData.otp}
                         onChange={handleChange}
                         placeholder="Enter 6-digit OTP"
                         maxLength="6"
+                        pattern="\d{6}"
+                        style={{ letterSpacing: '10px' }}
                         required
                       />
                     </div>

@@ -1,11 +1,19 @@
 import axios from 'axios';
 
+// ============== API CONFIGURATION ==============
+
 // API URL - uses environment variable for production, localhost for development
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-console.log('🔗 API Configuration:');
-console.log('   Environment:', process.env.NODE_ENV);
-console.log('   API URL:', API_URL);
+console.log('\n' + '━'.repeat(80));
+console.log('🔗 API SERVICE INITIALIZATION');
+console.log('━'.repeat(80));
+console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+console.log('🌐 API Base URL:', API_URL);
+console.log('⏱️  Timeout:', '30 seconds');
+console.log('━'.repeat(80) + '\n');
+
+// ============== AXIOS INSTANCE ==============
 
 // Create axios instance
 const api = axios.create({
@@ -14,75 +22,169 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds timeout for slow connections
+  withCredentials: true, // Send cookies with requests
 });
 
-// Add token to requests
+// ============== REQUEST INTERCEPTOR ==============
+
 api.interceptors.request.use(
   (config) => {
+    // Add authentication token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Log request for debugging
-    console.log(`📤 ${config.method.toUpperCase()} ${config.url}`);
+    // Log request details
+    console.log('\n' + '━'.repeat(80));
+    console.log(`📤 OUTGOING REQUEST - ${config.method?.toUpperCase()} ${config.url}`);
+    console.log('━'.repeat(80));
+    console.log('🌐 Full URL:', `${config.baseURL}${config.url}`);
+    
+    if (token) {
+      console.log('🔑 Authorization: Token Present');
+    }
+    
+    if (config.data && Object.keys(config.data).length > 0) {
+      // Sanitize sensitive data
+      const sanitizedData = { ...config.data };
+      if (sanitizedData.password) {
+        sanitizedData.password = '***HIDDEN***';
+      }
+      if (sanitizedData.otp && sanitizedData.otp.length > 2) {
+        sanitizedData.otp = `***${sanitizedData.otp.slice(-2)}`;
+      }
+      console.log('📦 Request Data:', JSON.stringify(sanitizedData, null, 2));
+    }
+    
+    if (config.params) {
+      console.log('🔍 Query Params:', config.params);
+    }
+    
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('━'.repeat(80) + '\n');
     
     return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error);
+    console.log('\n' + '━'.repeat(80));
+    console.error('❌ REQUEST INTERCEPTOR ERROR');
+    console.log('━'.repeat(80));
+    console.error('Error:', error.message);
+    console.log('━'.repeat(80) + '\n');
     return Promise.reject(error);
   }
 );
 
-// Handle response errors globally
+// ============== RESPONSE INTERCEPTOR ==============
+
 api.interceptors.response.use(
   (response) => {
     // Log successful response
-    console.log(`✅ ${response.config.method.toUpperCase()} ${response.config.url} - ${response.status}`);
+    console.log('\n' + '━'.repeat(80));
+    console.log(`✅ RESPONSE RECEIVED - ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    console.log('━'.repeat(80));
+    console.log('📊 Status:', response.status, response.statusText);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    
+    if (response.data) {
+      // Sanitize sensitive data in logs
+      const sanitizedData = { ...response.data };
+      if (sanitizedData.token) {
+        sanitizedData.token = `${sanitizedData.token.substring(0, 20)}...`;
+      }
+      if (sanitizedData.user?.password) {
+        delete sanitizedData.user.password;
+      }
+      console.log('📥 Response Data:', JSON.stringify(sanitizedData, null, 2));
+    }
+    
+    console.log('━'.repeat(80) + '\n');
     return response;
   },
   (error) => {
-    // Log error details
+    // Log error response
+    console.log('\n' + '━'.repeat(80));
+    console.log('❌ ERROR RESPONSE');
+    console.log('━'.repeat(80));
+    
     if (error.response) {
-      console.error(`❌ ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response.status}`);
-      console.error('   Error:', error.response.data?.message || error.message);
+      // Server responded with error status
+      console.log('📡 Request:', `${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+      console.log('📊 Status:', error.response.status, error.response.statusText);
+      console.log('💬 Error Message:', error.response.data?.message || error.message);
       
-      // Log additional error details for geo-fencing
-      if (error.response.data?.distance && error.response.data?.requiredRadius) {
-        console.error(`   📍 Distance: ${error.response.data.distance}m (Required: ${error.response.data.requiredRadius}m)`);
+      if (error.response.data) {
+        console.log('📥 Error Details:', JSON.stringify(error.response.data, null, 2));
       }
+      
+      // Log geo-fencing specific errors
+      if (error.response.data?.distance && error.response.data?.requiredRadius) {
+        console.log('📍 Geo-fencing Issue:');
+        console.log(`   Distance: ${error.response.data.distance}m`);
+        console.log(`   Required Radius: ${error.response.data.requiredRadius}m`);
+        console.log(`   Difference: ${(error.response.data.distance - error.response.data.requiredRadius).toFixed(2)}m`);
+      }
+      
     } else if (error.request) {
-      console.error('❌ Network Error: No response received');
-      console.error('   Check if backend is running at:', API_URL);
+      // Request was made but no response received
+      console.log('🌐 Network Error: No response from server');
+      console.log('📡 Request:', error.config?.url);
+      console.log('💡 Possible causes:');
+      console.log('   - Backend server is not running');
+      console.log('   - Network connection issues');
+      console.log('   - CORS configuration problems');
+      console.log('   - Firewall blocking the request');
+      console.log(`\n🔍 Check if backend is running at: ${API_URL}`);
+      
     } else {
-      console.error('❌ Request Error:', error.message);
+      // Error in request setup
+      console.log('⚙️ Request Setup Error:', error.message);
     }
-
-    // Handle 401 Unauthorized
+    
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('━'.repeat(80) + '\n');
+    
+    // Handle specific HTTP status codes
     if (error.response?.status === 401) {
-      console.warn('⚠️ Unauthorized - Clearing auth data');
+      console.warn('⚠️ UNAUTHORIZED (401) - Clearing authentication data');
       localStorage.removeItem('token');
       localStorage.removeItem('role');
       localStorage.removeItem('user');
       
-      // Only redirect if not on login/register pages
-      if (!window.location.pathname.includes('/login') && 
-          !window.location.pathname.includes('/register')) {
+      // Only redirect if not on public pages
+      const publicPaths = ['/login', '/register', '/', '/student/login', '/lecturer/login', '/student/register', '/lecturer/register'];
+      const currentPath = window.location.pathname;
+      
+      if (!publicPaths.includes(currentPath) && !publicPaths.some(path => currentPath.includes(path))) {
         console.warn('⚠️ Redirecting to home page');
-        window.location.href = '/';
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
       }
     }
-
-    // Handle network errors
+    
+    if (error.response?.status === 403) {
+      console.error('🚫 FORBIDDEN (403) - Access denied');
+    }
+    
+    if (error.response?.status === 404) {
+      console.error('🔍 NOT FOUND (404) - Resource not found');
+    }
+    
+    if (error.response?.status === 500) {
+      console.error('💥 SERVER ERROR (500) - Internal server error');
+    }
+    
+    // Handle network/timeout errors
     if (error.code === 'ECONNABORTED') {
-      console.error('❌ Request Timeout: Server took too long to respond');
+      console.error('⏱️ REQUEST TIMEOUT: Server took too long to respond');
       error.message = 'Request timeout. Please try again.';
     } else if (error.code === 'ERR_NETWORK') {
-      console.error('❌ Network Error: Cannot connect to server');
+      console.error('🌐 NETWORK ERROR: Cannot connect to server');
       error.message = 'Cannot connect to server. Please check your internet connection.';
     }
-
+    
     return Promise.reject(error);
   }
 );
@@ -90,37 +192,86 @@ api.interceptors.response.use(
 // ============== AUTH API ==============
 
 export const authAPI = {
-  // Send OTP for registration
-  sendStudentOTP: (data) => {
-    console.log('📧 Sending Student OTP to:', data.email);
-    return api.post('/auth/student/send-otp', data);
+  // ✅ STEP 1: Send OTP for Student Registration
+  sendStudentOTP: (email, name) => {
+    console.log('\n📧 SENDING STUDENT OTP');
+    console.log('   Email:', email);
+    console.log('   Name:', name);
+    return api.post('/auth/student/send-otp', { email, name });
   },
   
-  sendLecturerOTP: (data) => {
-    console.log('📧 Sending Lecturer OTP to:', data.email);
-    return api.post('/auth/lecturer/send-otp', data);
+  // ✅ STEP 1: Send OTP for Lecturer Registration
+  sendLecturerOTP: (email, name) => {
+    console.log('\n📧 SENDING LECTURER OTP');
+    console.log('   Email:', email);
+    console.log('   Name:', name);
+    return api.post('/auth/lecturer/send-otp', { email, name });
   },
   
-  // Register with OTP verification
-  studentRegister: (data) => {
-    console.log('👤 Registering Student:', data.email);
-    return api.post('/auth/student/register', data);
+  // ✅ STEP 2: Register Student with OTP Verification
+  registerStudent: (data) => {
+    console.log('\n👤 REGISTERING STUDENT');
+    console.log('   Name:', data.name);
+    console.log('   USN:', data.usn);
+    console.log('   Email:', data.email);
+    console.log('   Department:', data.department);
+    console.log('   Semester:', data.semester);
+    console.log('   Password:', data.password ? '***HIDDEN***' : 'Missing');
+    console.log('   OTP:', data.otp ? `***${data.otp.slice(-2)}` : 'Missing');
+    
+    return api.post('/auth/student/register', {
+      name: data.name,
+      usn: data.usn,
+      email: data.email,
+      password: data.password,
+      department: data.department,
+      semester: data.semester,
+      otp: data.otp
+    });
   },
   
-  lecturerRegister: (data) => {
-    console.log('👨‍🏫 Registering Lecturer:', data.email);
-    return api.post('/auth/lecturer/register', data);
+  // ✅ STEP 2: Register Lecturer with OTP Verification
+  registerLecturer: (data) => {
+    console.log('\n👨‍🏫 REGISTERING LECTURER');
+    console.log('   Name:', data.name);
+    console.log('   Employee ID:', data.employeeId);
+    console.log('   Email:', data.email);
+    console.log('   Department:', data.department);
+    console.log('   Subjects:', data.subjects);
+    console.log('   Password:', data.password ? '***HIDDEN***' : 'Missing');
+    console.log('   OTP:', data.otp ? `***${data.otp.slice(-2)}` : 'Missing');
+    
+    return api.post('/auth/lecturer/register', {
+      name: data.name,
+      employeeId: data.employeeId,
+      email: data.email,
+      password: data.password,
+      department: data.department,
+      subjects: data.subjects,
+      otp: data.otp
+    });
   },
   
-  // Login (no OTP needed)
-  studentLogin: (data) => {
-    console.log('🔐 Student Login:', data.usn);
-    return api.post('/auth/student/login', data);
+  // ✅ Student Login (No OTP needed)
+  loginStudent: (usn, password) => {
+    console.log('\n🔐 STUDENT LOGIN');
+    console.log('   USN:', usn);
+    console.log('   Password:', password ? '***HIDDEN***' : 'Missing');
+    return api.post('/auth/student/login', { usn, password });
   },
   
-  lecturerLogin: (data) => {
-    console.log('🔐 Lecturer Login:', data.employeeId);
-    return api.post('/auth/lecturer/login', data);
+  // ✅ Lecturer Login (No OTP needed)
+  loginLecturer: (employeeId, password) => {
+    console.log('\n🔐 LECTURER LOGIN');
+    console.log('   Employee ID:', employeeId);
+    console.log('   Password:', password ? '***HIDDEN***' : 'Missing');
+    return api.post('/auth/lecturer/login', { employeeId, password });
+  },
+  
+  // Get current user
+  getCurrentUser: () => {
+    console.log('\n👤 FETCHING CURRENT USER');
+    return api.get('/auth/me');
   },
 };
 
@@ -128,59 +279,57 @@ export const authAPI = {
 
 export const lecturerAPI = {
   getProfile: () => {
-    console.log('📋 Fetching Lecturer Profile');
+    console.log('\n📋 FETCHING LECTURER PROFILE');
     return api.get('/lecturer/profile');
   },
   
   createSession: (data) => {
-    console.log('➕ Creating Session:', data.subject);
-    console.log('📍 Location:', data.location?.latitude, data.location?.longitude);
-    console.log('📏 Radius:', data.location?.radius, 'meters');
+    console.log('\n➕ CREATING SESSION');
+    console.log('   Subject:', data.subject);
+    console.log('   📍 Location:', data.location?.latitude, data.location?.longitude);
+    console.log('   📏 Radius:', data.location?.radius, 'meters');
+    console.log('   🔄 QR Refresh Interval:', data.qrRefreshInterval, 'seconds');
     return api.post('/lecturer/create-session', data);
   },
   
   getSessions: () => {
-    console.log('📚 Fetching Sessions');
+    console.log('\n📚 FETCHING SESSIONS');
     return api.get('/lecturer/sessions');
   },
   
   getSessionAttendance: (sessionId) => {
-    console.log('📊 Fetching Attendance for Session:', sessionId);
+    console.log('\n📊 FETCHING ATTENDANCE FOR SESSION:', sessionId);
     return api.get(`/lecturer/session/${sessionId}/attendance`);
   },
   
   deactivateSession: (sessionId) => {
-    console.log('🔴 Deactivating Session:', sessionId);
+    console.log('\n🔴 DEACTIVATING SESSION:', sessionId);
     return api.put(`/lecturer/session/${sessionId}/deactivate`);
   },
   
-  // Dynamic QR Code - Refresh every 5 seconds
   refreshQRCode: (sessionId) => {
-    console.log('🔄 Refreshing QR Code for Session:', sessionId);
+    console.log('\n🔄 REFRESHING QR CODE FOR SESSION:', sessionId);
     return api.get(`/lecturer/session/${sessionId}/refresh-qr`);
   },
   
   getStatistics: () => {
-    console.log('📈 Fetching Lecturer Statistics');
+    console.log('\n📈 FETCHING LECTURER STATISTICS');
     return api.get('/lecturer/statistics');
   },
   
-  // Graph Statistics - For charts and analytics
   getGraphStats: () => {
-    console.log('📊 Fetching Graph Statistics');
+    console.log('\n📊 FETCHING GRAPH STATISTICS');
     return api.get('/lecturer/statistics/graphs');
   },
   
-  // Exam Eligibility Report
   getExamEligibility: (semester, department) => {
-    console.log('🎓 Fetching Exam Eligibility Report');
+    console.log('\n🎓 FETCHING EXAM ELIGIBILITY REPORT');
     console.log('   Semester:', semester, '| Department:', department);
     return api.get(`/lecturer/exam-eligibility/${semester}/${department}`);
   },
   
-  // Get all students by department and semester
   getStudents: (department, semester) => {
-    console.log('👥 Fetching Students:', department, '- Semester', semester);
+    console.log('\n👥 FETCHING STUDENTS:', department, '- Semester', semester);
     return api.get(`/lecturer/students/${department}/${semester}`);
   },
 };
@@ -189,61 +338,69 @@ export const lecturerAPI = {
 
 export const studentAPI = {
   getProfile: () => {
-    console.log('📋 Fetching Student Profile');
+    console.log('\n📋 FETCHING STUDENT PROFILE');
     return api.get('/student/profile');
   },
   
   getAttendance: () => {
-    console.log('📊 Fetching Student Attendance');
+    console.log('\n📊 FETCHING STUDENT ATTENDANCE');
     return api.get('/student/attendance');
   },
   
   getStatistics: () => {
-    console.log('📈 Fetching Student Statistics');
+    console.log('\n📈 FETCHING STUDENT STATISTICS');
     return api.get('/student/statistics');
   },
   
-  // Get subject-wise attendance details
   getSubjectAttendance: (subject) => {
-    console.log('📚 Fetching Attendance for Subject:', subject);
+    console.log('\n📚 FETCHING ATTENDANCE FOR SUBJECT:', subject);
     return api.get(`/student/attendance/subject/${subject}`);
   },
   
-  // Get exam eligibility status
   getExamEligibility: () => {
-    console.log('🎓 Checking Exam Eligibility');
+    console.log('\n🎓 CHECKING EXAM ELIGIBILITY');
     return api.get('/student/exam-eligibility');
+  },
+  
+  markAttendance: (qrCode, location) => {
+    console.log('\n✅ MARKING ATTENDANCE');
+    console.log('   QR Code:', qrCode?.substring(0, 20) + '...');
+    console.log('   📍 Location:', location?.latitude, location?.longitude);
+    console.log('   📏 Accuracy:', location?.accuracy, 'meters');
+    return api.post('/student/mark-attendance', {
+      qrCode,
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      accuracy: location?.accuracy
+    });
   },
 };
 
 // ============== ATTENDANCE API ==============
 
 export const attendanceAPI = {
-  // Mark attendance with QR code and location
   markAttendance: (data) => {
     if (typeof data === 'string') {
-      // Legacy support: if string is passed, convert to object
-      console.log('✅ Marking Attendance with QR Code (Legacy)');
+      console.log('\n✅ MARKING ATTENDANCE (Legacy Format)');
+      console.log('   QR Code:', data.substring(0, 20) + '...');
       return api.post('/attendance/mark', { qrCode: data });
     } else {
-      // New format with location
-      console.log('✅ Marking Attendance with Location');
+      console.log('\n✅ MARKING ATTENDANCE');
       console.log('   QR Code:', data.qrCode?.substring(0, 20) + '...');
       console.log('   📍 Location:', data.location?.latitude, data.location?.longitude);
       return api.post('/attendance/mark', data);
     }
   },
   
-  // Get attendance history with filters
   getAttendanceHistory: (filters = {}) => {
-    console.log('📜 Fetching Attendance History');
+    console.log('\n📜 FETCHING ATTENDANCE HISTORY');
+    console.log('   Filters:', filters);
     const params = new URLSearchParams(filters).toString();
     return api.get(`/attendance/history?${params}`);
   },
   
-  // Get attendance by date range
   getAttendanceByDateRange: (startDate, endDate) => {
-    console.log('📅 Fetching Attendance from', startDate, 'to', endDate);
+    console.log('\n📅 FETCHING ATTENDANCE FROM', startDate, 'TO', endDate);
     return api.get('/attendance/date-range', {
       params: { startDate, endDate }
     });
@@ -253,27 +410,23 @@ export const attendanceAPI = {
 // ============== ANALYTICS API ==============
 
 export const analyticsAPI = {
-  // Student Analytics
   getStudentAnalytics: () => {
-    console.log('📊 Fetching Student Analytics');
+    console.log('\n📊 FETCHING STUDENT ANALYTICS');
     return api.get('/analytics/student');
   },
   
-  // Lecturer Analytics
   getLecturerAnalytics: () => {
-    console.log('📊 Fetching Lecturer Analytics');
+    console.log('\n📊 FETCHING LECTURER ANALYTICS');
     return api.get('/analytics/lecturer');
   },
   
-  // Department-wise analytics
   getDepartmentAnalytics: (department) => {
-    console.log('📊 Fetching Analytics for Department:', department);
+    console.log('\n📊 FETCHING ANALYTICS FOR DEPARTMENT:', department);
     return api.get(`/analytics/department/${department}`);
   },
   
-  // Semester-wise analytics
   getSemesterAnalytics: (semester) => {
-    console.log('📊 Fetching Analytics for Semester:', semester);
+    console.log('\n📊 FETCHING ANALYTICS FOR SEMESTER:', semester);
     return api.get(`/analytics/semester/${semester}`);
   },
 };
@@ -281,9 +434,8 @@ export const analyticsAPI = {
 // ============== LOCATION API ==============
 
 export const locationAPI = {
-  // Verify location is within classroom radius
   verifyLocation: (sessionId, location) => {
-    console.log('📍 Verifying Location for Session:', sessionId);
+    console.log('\n📍 VERIFYING LOCATION FOR SESSION:', sessionId);
     console.log('   Coordinates:', location.latitude, location.longitude);
     return api.post('/location/verify', {
       sessionId,
@@ -291,35 +443,33 @@ export const locationAPI = {
     });
   },
   
-  // Get classroom location details
   getClassroomLocation: (sessionId) => {
-    console.log('🏫 Fetching Classroom Location for Session:', sessionId);
+    console.log('\n🏫 FETCHING CLASSROOM LOCATION FOR SESSION:', sessionId);
     return api.get(`/location/classroom/${sessionId}`);
   },
 };
 
 // ============== UTILITY FUNCTIONS ==============
 
-// Export API URL for debugging
 export const getApiUrl = () => {
-  console.log('🔗 Current API URL:', API_URL);
+  console.log('\n🔗 CURRENT API URL:', API_URL);
   return API_URL;
 };
 
-// Test API connection
 export const testConnection = async () => {
   try {
-    console.log('🔌 Testing API Connection...');
+    console.log('\n🔌 TESTING API CONNECTION...');
     const response = await api.get('/health');
-    console.log('✅ API Connection Successful');
+    console.log('✅ API CONNECTION SUCCESSFUL');
+    console.log('   Server Status:', response.data.status);
+    console.log('   Server Uptime:', response.data.uptime, 'seconds');
     return response.data;
   } catch (error) {
-    console.error('❌ API Connection Failed');
+    console.error('❌ API CONNECTION FAILED');
     throw error;
   }
 };
 
-// Get current user info from token
 export const getCurrentUser = () => {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
@@ -338,30 +488,27 @@ export const getCurrentUser = () => {
   };
 };
 
-// Clear authentication data
 export const clearAuth = () => {
-  console.log('🧹 Clearing authentication data');
+  console.log('\n🧹 CLEARING AUTHENTICATION DATA');
   localStorage.removeItem('token');
   localStorage.removeItem('role');
   localStorage.removeItem('user');
+  console.log('✅ Authentication data cleared');
 };
 
-// Check if user is authenticated
 export const isAuthenticated = () => {
   const token = localStorage.getItem('token');
   const isAuth = !!token;
-  console.log('🔐 Authentication Status:', isAuth ? 'Authenticated' : 'Not Authenticated');
+  console.log('🔐 Authentication Status:', isAuth ? '✅ Authenticated' : '❌ Not Authenticated');
   return isAuth;
 };
 
-// Get user role
 export const getUserRole = () => {
   const role = localStorage.getItem('role');
   console.log('👤 User Role:', role || 'None');
   return role;
 };
 
-// Format error message for display
 export const formatErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;
@@ -372,18 +519,17 @@ export const formatErrorMessage = (error) => {
   return 'An unexpected error occurred';
 };
 
-// Download attendance report
 export const downloadAttendanceReport = async (sessionId, format = 'csv') => {
   try {
-    console.log('📥 Downloading Attendance Report');
-    console.log('   Session:', sessionId, '| Format:', format);
+    console.log('\n📥 DOWNLOADING ATTENDANCE REPORT');
+    console.log('   Session:', sessionId);
+    console.log('   Format:', format);
     
     const response = await api.get(`/lecturer/session/${sessionId}/download`, {
       params: { format },
       responseType: 'blob'
     });
     
-    // Create download link
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -392,9 +538,9 @@ export const downloadAttendanceReport = async (sessionId, format = 'csv') => {
     link.click();
     link.remove();
     
-    console.log('✅ Download Complete');
+    console.log('✅ DOWNLOAD COMPLETE');
   } catch (error) {
-    console.error('❌ Download Failed:', error);
+    console.error('❌ DOWNLOAD FAILED:', error);
     throw error;
   }
 };
@@ -403,19 +549,20 @@ export const downloadAttendanceReport = async (sessionId, format = 'csv') => {
 
 export default api;
 
-// Export all APIs as named exports
 export {
   api,
   API_URL,
 };
 
-// Log API initialization
-console.log('✅ API Service Initialized');
-console.log('📦 Available APIs:', [
-  'authAPI',
-  'lecturerAPI',
-  'studentAPI',
-  'attendanceAPI',
-  'analyticsAPI',
-  'locationAPI'
-].join(', '));
+// Log API initialization complete
+console.log('━'.repeat(80));
+console.log('✅ API SERVICE READY');
+console.log('━'.repeat(80));
+console.log('📦 Available APIs:');
+console.log('   - authAPI (Authentication & Registration)');
+console.log('   - lecturerAPI (Lecturer Operations)');
+console.log('   - studentAPI (Student Operations)');
+console.log('   - attendanceAPI (Attendance Marking)');
+console.log('   - analyticsAPI (Analytics & Statistics)');
+console.log('   - locationAPI (Location Verification)');
+console.log('━'.repeat(80) + '\n');

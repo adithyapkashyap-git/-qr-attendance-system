@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../../services/api';
 import { toast } from 'react-toastify';
-import { FaEnvelope, FaLock } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaUser, FaIdBadge, FaBuilding, FaBook } from 'react-icons/fa';
 import './Auth.css';
 
 const LecturerRegister = () => {
@@ -26,20 +26,28 @@ const LecturerRegister = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email) {
-      toast.error('Please enter your name and email');
+    // ✅ VALIDATION: Check ALL required fields
+    if (!formData.name || !formData.employeeId || !formData.email || !formData.password || !formData.department || !formData.subjects) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await authAPI.sendLecturerOTP({ 
-        email: formData.email, 
-        name: formData.name 
-      });
+      console.log('📧 Sending OTP with data:', { email: formData.email, name: formData.name });
+      
+      await authAPI.sendLecturerOTP(formData.email, formData.name);
+      
+      console.log('✅ OTP sent successfully');
       toast.success('OTP sent to your email!');
       setStep(2);
     } catch (error) {
+      console.error('❌ Send OTP error:', error);
       toast.error(error.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
@@ -49,18 +57,35 @@ const LecturerRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.otp) {
-      toast.error('Please enter OTP');
+    if (!formData.otp || formData.otp.length !== 6) {
+      toast.error('Please enter a valid 6-digit OTP');
       return;
     }
 
     setLoading(true);
     try {
-      const subjectsArray = formData.subjects.split(',').map(s => s.trim());
-      const response = await authAPI.lecturerRegister({
-        ...formData,
-        subjects: subjectsArray,
+      console.log('🔍 Submitting registration with ALL data:', {
+        name: formData.name,
+        employeeId: formData.employeeId,
+        email: formData.email,
+        department: formData.department,
+        subjects: formData.subjects,
+        otp: formData.otp,
+        hasPassword: !!formData.password
       });
+
+      const response = await authAPI.registerLecturer({
+        name: formData.name,
+        employeeId: formData.employeeId,
+        email: formData.email,
+        password: formData.password,
+        department: formData.department,
+        subjects: formData.subjects,
+        otp: formData.otp
+      });
+
+      console.log('✅ Registration successful:', response.data);
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('role', 'lecturer');
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -68,7 +93,9 @@ const LecturerRegister = () => {
       toast.success('Registration successful!');
       navigate('/lecturer/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      console.error('❌ Registration error:', error);
+      console.error('Error details:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,165 +104,261 @@ const LecturerRegister = () => {
   const handleResendOTP = async () => {
     setLoading(true);
     try {
-      await authAPI.sendLecturerOTP({ 
-        email: formData.email, 
-        name: formData.name 
-      });
+      await authAPI.sendLecturerOTP(formData.email, formData.name);
       toast.success('OTP resent to your email!');
     } catch (error) {
-      toast.error('Failed to resend OTP');
+      toast.error(error.response?.data?.message || 'Failed to resend OTP');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2 className="auth-title">Lecturer Registration</h2>
-        
-        {/* Step Indicator */}
-        <div className="step-indicator">
-          <div className={`step ${step >= 1 ? 'active' : ''}`}>
-            <span>1</span>
-            <p>Details</p>
-          </div>
-          <div className="step-line"></div>
-          <div className={`step ${step >= 2 ? 'active' : ''}`}>
-            <span>2</span>
-            <p>Verify</p>
+    <div className="auth-page bg-light min-vh-100 d-flex align-items-center py-5">
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-lg-6">
+            <div className="card shadow-lg border-0 rounded-4">
+              <div className="card-body p-5">
+                <div className="text-center mb-4">
+                  <div className="mb-3">
+                    <FaUser size={60} className="text-primary" />
+                  </div>
+                  <h2 className="fw-bold">Lecturer Registration</h2>
+                  <p className="text-muted">Create your account</p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="progress" style={{ height: '8px' }}>
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: step === 1 ? '50%' : '100%' }}
+                    ></div>
+                  </div>
+                  <div className="d-flex justify-content-between mt-2">
+                    <small className={step >= 1 ? 'text-primary fw-bold' : 'text-muted'}>
+                      Step 1: Details
+                    </small>
+                    <small className={step >= 2 ? 'text-primary fw-bold' : 'text-muted'}>
+                      Step 2: Verify
+                    </small>
+                  </div>
+                </div>
+
+                {step === 1 ? (
+                  <form onSubmit={handleSendOTP}>
+                    <div className="form-group mb-3">
+                      <label className="form-label">Full Name</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaUser />
+                        </span>
+                        <input
+                          type="text"
+                          name="name"
+                          className="form-control"
+                          value={formData.name}
+                          onChange={handleChange}
+                          placeholder="Enter your full name"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group mb-3">
+                      <label className="form-label">Employee ID</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaIdBadge />
+                        </span>
+                        <input
+                          type="text"
+                          name="employeeId"
+                          className="form-control"
+                          value={formData.employeeId}
+                          onChange={handleChange}
+                          placeholder="Enter your employee ID"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group mb-3">
+                      <label className="form-label">Email</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaEnvelope />
+                        </span>
+                        <input
+                          type="email"
+                          name="email"
+                          className="form-control"
+                          value={formData.email}
+                          onChange={handleChange}
+                          placeholder="Enter your email"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group mb-3">
+                      <label className="form-label">Department</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaBuilding />
+                        </span>
+                        <select 
+                          name="department"
+                          className="form-control"
+                          value={formData.department} 
+                          onChange={handleChange} 
+                          required
+                        >
+                          <option value="">Select Department</option>
+                          <option value="Computer Science Engineering">Computer Science Engineering</option>
+                          <option value="Information Science Engineering">Information Science Engineering</option>
+                          <option value="Electronics & Communication">Electronics & Communication</option>
+                          <option value="Mechanical Engineering">Mechanical Engineering</option>
+                          <option value="Civil Engineering">Civil Engineering</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group mb-3">
+                      <label className="form-label">Subjects (Comma Separated)</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaBook />
+                        </span>
+                        <input
+                          type="text"
+                          name="subjects"
+                          className="form-control"
+                          value={formData.subjects}
+                          onChange={handleChange}
+                          placeholder="e.g., Data Structures, Algorithms, DBMS"
+                          required
+                        />
+                      </div>
+                      <small className="text-muted">Separate multiple subjects with commas</small>
+                    </div>
+
+                    <div className="form-group mb-4">
+                      <label className="form-label">Password</label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <FaLock />
+                        </span>
+                        <input
+                          type="password"
+                          name="password"
+                          className="form-control"
+                          value={formData.password}
+                          onChange={handleChange}
+                          placeholder="Create a password (min 6 characters)"
+                          minLength="6"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="d-grid">
+                      <button 
+                        type="submit"
+                        className="btn btn-primary btn-lg mb-3"
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2"></span>
+                            Sending OTP...
+                          </>
+                        ) : (
+                          <>
+                            <FaEnvelope className="me-2" /> Send OTP
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleSubmit}>
+                    <div className="text-center mb-4 p-4 bg-light rounded">
+                      <FaEnvelope size={48} className="text-primary mb-3" />
+                      <p className="mb-1">We've sent a 6-digit OTP to</p>
+                      <strong className="text-primary">{formData.email}</strong>
+                    </div>
+
+                    <div className="form-group mb-4">
+                      <label className="form-label">Enter OTP</label>
+                      <input
+                        type="text"
+                        name="otp"
+                        className="form-control text-center fs-4"
+                        value={formData.otp}
+                        onChange={handleChange}
+                        placeholder="Enter 6-digit OTP"
+                        maxLength="6"
+                        pattern="\d{6}"
+                        style={{ letterSpacing: '10px' }}
+                        required
+                      />
+                    </div>
+
+                    <div className="d-grid gap-2">
+                      <button 
+                        type="submit"
+                        className="btn btn-success btn-lg"
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2"></span>
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <FaLock className="me-2" /> Verify & Register
+                          </>
+                        )}
+                      </button>
+
+                      <button 
+                        type="button"
+                        className="btn btn-outline-primary"
+                        onClick={handleResendOTP}
+                        disabled={loading}
+                      >
+                        Resend OTP
+                      </button>
+
+                      <button 
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => setStep(1)}
+                      >
+                        ← Back to Form
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="text-center mt-4">
+                  <p className="text-muted">
+                    Already have an account?{' '}
+                    <Link to="/lecturer/login" className="text-decoration-none fw-bold">
+                      Login here
+                    </Link>
+                  </p>
+                  <Link to="/" className="text-decoration-none text-muted">
+                    ← Back to Home
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        {step === 1 ? (
-          <form onSubmit={handleSendOTP} className="auth-form">
-            <div className="form-group">
-              <label>Full Name</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Employee ID</label>
-              <input
-                type="text"
-                name="employeeId"
-                value={formData.employeeId}
-                onChange={handleChange}
-                placeholder="Enter your Employee ID"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Department</label>
-              <select name="department" value={formData.department} onChange={handleChange} required>
-                <option value="">Select Department</option>
-                <option value="CSE">Computer Science Engineering</option>
-                <option value="ISE">Information Science Engineering</option>
-                <option value="ECE">Electronics & Communication</option>
-                <option value="ME">Mechanical Engineering</option>
-                <option value="CE">Civil Engineering</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Subjects (comma separated)</label>
-              <input
-                type="text"
-                name="subjects"
-                value={formData.subjects}
-                onChange={handleChange}
-                placeholder="e.g., Data Structures, Algorithms, DBMS"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Create a password"
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Sending OTP...' : <><FaEnvelope /> Send OTP</>}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="otp-info">
-              <FaEnvelope className="otp-icon" />
-              <p>We've sent a 6-digit OTP to</p>
-              <strong>{formData.email}</strong>
-            </div>
-
-            <div className="form-group">
-              <label>Enter OTP</label>
-              <input
-                type="text"
-                name="otp"
-                value={formData.otp}
-                onChange={handleChange}
-                placeholder="Enter 6-digit OTP"
-                maxLength="6"
-                className="otp-input-large"
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Verifying...' : <><FaLock /> Verify & Register</>}
-            </button>
-
-            <button 
-              type="button" 
-              className="btn-resend" 
-              onClick={handleResendOTP}
-              disabled={loading}
-            >
-              Resend OTP
-            </button>
-
-            <button 
-              type="button" 
-              className="btn-back" 
-              onClick={() => setStep(1)}
-            >
-              ← Back to Form
-            </button>
-          </form>
-        )}
-
-        <p className="auth-link">
-          Already have an account? <Link to="/lecturer/login">Login here</Link>
-        </p>
-        <p className="auth-link">
-          <Link to="/">← Back to Home</Link>
-        </p>
       </div>
     </div>
   );

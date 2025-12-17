@@ -39,10 +39,47 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware
+// ✅ DETAILED REQUEST LOGGING MIDDLEWARE (MUST BE AFTER BODY PARSER)
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  
+  console.log('\n' + '━'.repeat(100));
+  console.log(`📡 [${timestamp}] ${req.method} ${req.path}`);
+  console.log('━'.repeat(100));
+  
+  // Log request headers
+  if (req.headers.authorization) {
+    console.log('🔑 Authorization: Present');
+  }
+  
+  // Log request body (if exists)
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('📦 Request Body:');
+    
+    // Hide sensitive data in logs
+    const sanitizedBody = { ...req.body };
+    if (sanitizedBody.password) {
+      sanitizedBody.password = '***HIDDEN***';
+    }
+    if (sanitizedBody.otp) {
+      sanitizedBody.otp = `***${sanitizedBody.otp.slice(-2)}`;
+    }
+    
+    console.log(JSON.stringify(sanitizedBody, null, 2));
+  }
+  
+  // Log query params (if exists)
+  if (req.query && Object.keys(req.query).length > 0) {
+    console.log('🔍 Query Params:', JSON.stringify(req.query, null, 2));
+  }
+  
+  // Log origin
+  if (req.headers.origin) {
+    console.log('🌐 Origin:', req.headers.origin);
+  }
+  
+  console.log('━'.repeat(100) + '\n');
+  
   next();
 });
 
@@ -179,16 +216,35 @@ app.get('/api/docs', (req, res) => {
 
 // 404 handler - Route not found
 app.use((req, res, next) => {
+  console.log('\n' + '━'.repeat(100));
+  console.log(`❌ 404 NOT FOUND - ${req.method} ${req.path}`);
+  console.log('━'.repeat(100) + '\n');
+  
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.path} not found`,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    availableEndpoints: {
+      root: '/',
+      health: '/api/health',
+      docs: '/api/docs',
+      auth: '/api/auth/*',
+      student: '/api/student/*',
+      lecturer: '/api/lecturer/*',
+      attendance: '/api/attendance/*'
+    }
   });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
+  console.log('\n' + '━'.repeat(100));
+  console.log('💥 ERROR HANDLER TRIGGERED');
+  console.log('━'.repeat(100));
+  console.error('❌ Error Name:', err.name);
+  console.error('❌ Error Message:', err.message);
+  console.error('❌ Error Stack:', err.stack);
+  console.log('━'.repeat(100) + '\n');
   
   // Mongoose validation error
   if (err.name === 'ValidationError') {
@@ -236,63 +292,74 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr-attendance';
 
+console.log('\n' + '━'.repeat(100));
 console.log('🔄 Connecting to MongoDB...');
 console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log('━'.repeat(100) + '\n');
 
 // ✅ FIXED: Removed deprecated options
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
+    console.log('━'.repeat(100));
     console.log('✅ MongoDB Connected Successfully');
     console.log(`📊 Database: ${mongoose.connection.name}`);
     console.log(`🌐 Host: ${mongoose.connection.host}`);
+    console.log('━'.repeat(100) + '\n');
     
     // Start server only after DB connection
     app.listen(PORT, () => {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━'.repeat(100));
       console.log('🚀 QR ATTENDANCE SYSTEM API');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━'.repeat(100));
       console.log(`🌍 Server running on port ${PORT}`);
       console.log(`🔗 API URL: http://localhost:${PORT}/api`);
       console.log(`📚 Documentation: http://localhost:${PORT}/api/docs`);
       console.log(`❤️  Health Check: http://localhost:${PORT}/api/health`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━'.repeat(100));
       console.log('✨ Features:');
       console.log('   📍 Geo-fencing enabled');
       console.log('   🔄 Dynamic QR codes (5s refresh)');
       console.log('   📊 Graph statistics');
       console.log('   🎓 Exam eligibility tracking');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━'.repeat(100));
+      console.log('\n⏳ Server ready. Waiting for requests...\n');
     });
   })
   .catch((err) => {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌ MONGODB CONNECTION FAILED');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('━'.repeat(100));
+    console.log('❌ MONGODB CONNECTION FAILED');
+    console.log('━'.repeat(100));
     console.error('Error:', err.message);
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('💡 Troubleshooting:');
-    console.error('   1. Check if MongoDB is running');
-    console.error('   2. Verify MONGODB_URI in .env file');
-    console.error('   3. Check network connectivity');
-    console.error('   4. Ensure MongoDB URI format is correct');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('━'.repeat(100));
+    console.log('💡 Troubleshooting:');
+    console.log('   1. Check if MongoDB is running');
+    console.log('   2. Verify MONGODB_URI in .env file');
+    console.log('   3. Check network connectivity');
+    console.log('   4. Ensure MongoDB URI format is correct');
+    console.log('━'.repeat(100) + '\n');
     process.exit(1);
   });
 
 // ============== GRACEFUL SHUTDOWN ==============
 
-// Handle MongoDB connection errors after initial connection
+// Handle MongoDB connection events
 mongoose.connection.on('error', (err) => {
+  console.log('\n' + '━'.repeat(100));
   console.error('❌ MongoDB Error:', err);
+  console.log('━'.repeat(100) + '\n');
 });
 
 mongoose.connection.on('disconnected', () => {
+  console.log('\n' + '━'.repeat(100));
   console.warn('⚠️ MongoDB Disconnected');
+  console.log('━'.repeat(100) + '\n');
 });
 
 mongoose.connection.on('reconnected', () => {
+  console.log('\n' + '━'.repeat(100));
   console.log('✅ MongoDB Reconnected');
+  console.log('━'.repeat(100) + '\n');
 });
 
 // Graceful shutdown
@@ -316,13 +383,17 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
+  console.log('\n' + '━'.repeat(100));
   console.error('❌ Unhandled Rejection at:', promise);
   console.error('Reason:', reason);
+  console.log('━'.repeat(100) + '\n');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
+  console.log('\n' + '━'.repeat(100));
   console.error('❌ Uncaught Exception:', error);
+  console.log('━'.repeat(100) + '\n');
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
