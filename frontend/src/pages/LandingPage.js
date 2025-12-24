@@ -13,8 +13,8 @@ const LandingPage = () => {
         {/* Header */}
         <div className="landing-header">
           <FaQrcode className="landing-icon" />
-          <h1>QR Code Attendance System</h1>
-          <p>Modern, Fast & Secure Attendance Management</p>
+          <h1>GeoAttend</h1>
+          <p>An Dynamic QR Code-Based Attendance System with Real-Time Geofencing, Live Analytics Dashboard, and Automated Exam Eligibility Verification</p>
         </div>
 
         {/* Role Cards */}
