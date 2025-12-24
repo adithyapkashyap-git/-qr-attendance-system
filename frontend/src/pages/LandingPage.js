@@ -14,7 +14,7 @@ const LandingPage = () => {
         <div className="landing-header">
           <FaQrcode className="landing-icon" />
           <h1>GeoAttend</h1>
-          <p>An Dynamic QR Code-Based Attendance System with Real-Time Geofencing, Live Analytics Dashboard, and Automated Exam Eligibility Verification</p>
+          <p>Modern, Fast & Secure Attendance Management</p>
         </div>
 
         {/* Role Cards */}
