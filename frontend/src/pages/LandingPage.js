@@ -117,7 +117,7 @@ const LandingPage = () => {
 
             <div className="developer-links">
               <a 
-                href="https://github.com/adithyapkashyap" 
+                href="https://github.com/adithyapkashyap-git" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="dev-link"
