@@ -7,7 +7,7 @@
     "start": "cd frontend && npm start"
   },
   "engines": {
-    "node": "18.x"
+    "node": "18.x || >=20.19.0 <23"
   },
   "dependencies": {
     "react-scripts": "^5.0.1"

@@ -7,15 +7,32 @@ dotenv.config();
 
 const app = express();
 
+const normalizeOrigin = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch (error) {
+    return value.replace(/\/+$/, '');
+  }
+};
+
 // ============== MIDDLEWARE ==============
 
 // CORS Configuration
+const frontendOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => normalizeOrigin(origin.trim()))
+  .filter(Boolean);
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
-  process.env.FRONTEND_URL, // Will be your Vercel URL
-  'https://your-app.vercel.app', // Replace with your actual Vercel URL
+  ...frontendOrigins,
+  'https://adithyapkashyap-git.github.io',
 ];
 
 app.use(cors({
