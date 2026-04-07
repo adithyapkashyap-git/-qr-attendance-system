@@ -2,6 +2,11 @@ import axios from 'axios';
 
 // ============== API CONFIGURATION ==============
 
+const getCurrentRoute = () => {
+  const hashPath = window.location.hash.replace(/^#/, '') || '/';
+  return hashPath.startsWith('/') ? hashPath : `/${hashPath}`;
+};
+
 // API URL - uses environment variable for production, localhost for development
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -154,12 +159,12 @@ api.interceptors.response.use(
       
       // Only redirect if not on public pages
       const publicPaths = ['/login', '/register', '/', '/student/login', '/lecturer/login', '/student/register', '/lecturer/register'];
-      const currentPath = window.location.pathname;
+      const currentPath = getCurrentRoute();
       
       if (!publicPaths.includes(currentPath) && !publicPaths.some(path => currentPath.includes(path))) {
         console.warn('⚠️ Redirecting to home page');
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.replace(`${window.location.pathname}#/`);
         }, 1000);
       }
     }
