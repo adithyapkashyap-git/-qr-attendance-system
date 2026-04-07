@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "npm install --prefix backend --ignore-scripts",
     "build": "cd frontend && npm install && npm run build",
-    "start": "cd frontend && npm start"
+    "start": "cd frontend && npm start",
+    "render:build": "npm install --prefix backend --ignore-scripts",
+    "render:start": "npm start --prefix backend"
   },
   "engines": {
     "node": "18.x || >=20.19.0 <23"

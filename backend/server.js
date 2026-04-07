@@ -158,8 +158,10 @@ app.get('/api/health', async (req, res) => {
     }
 
     res.json({
-      status: 'OK',
-      message: 'QR Attendance System API is running',
+      status: dbStatus === 'connected' ? 'OK' : 'DEGRADED',
+      message: dbStatus === 'connected'
+        ? 'QR Attendance System API is running'
+        : 'QR Attendance System API is running without a database connection',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
@@ -308,111 +310,134 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr-attendance';
+const MONGODB_RETRY_DELAY_MS = 10000;
+let reconnectTimer = null;
+let isShuttingDown = false;
 
-console.log('\n' + '━'.repeat(100));
-console.log('🔄 Connecting to MongoDB...');
-console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log('━'.repeat(100) + '\n');
+const scheduleReconnect = () => {
+  if (isShuttingDown || reconnectTimer) {
+    return;
+  }
 
-// ✅ FIXED: Removed deprecated options
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
-    console.log('━'.repeat(100));
-    console.log('✅ MongoDB Connected Successfully');
-    console.log(`📊 Database: ${mongoose.connection.name}`);
-    console.log(`🌐 Host: ${mongoose.connection.host}`);
-    console.log('━'.repeat(100) + '\n');
-    
-    // Start server only after DB connection
-    app.listen(PORT, () => {
-      console.log('━'.repeat(100));
-      console.log('🚀 QR ATTENDANCE SYSTEM API');
-      console.log('━'.repeat(100));
-      console.log(`🌍 Server running on port ${PORT}`);
-      console.log(`🔗 API URL: http://localhost:${PORT}/api`);
-      console.log(`📚 Documentation: http://localhost:${PORT}/api/docs`);
-      console.log(`❤️  Health Check: http://localhost:${PORT}/api/health`);
-      console.log('━'.repeat(100));
-      console.log('✨ Features:');
-      console.log('   📍 Geo-fencing enabled');
-      console.log('   🔄 Dynamic QR codes (5s refresh)');
-      console.log('   📊 Graph statistics');
-      console.log('   🎓 Exam eligibility tracking');
-      console.log('━'.repeat(100));
-      console.log('\n⏳ Server ready. Waiting for requests...\n');
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void connectToMongo();
+  }, MONGODB_RETRY_DELAY_MS);
+};
+
+const connectToMongo = async () => {
+  if (isShuttingDown || mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return;
+  }
+
+  console.log('\n' + '-'.repeat(100));
+  console.log('Connecting to MongoDB...');
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('-'.repeat(100) + '\n');
+
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
     });
-  })
-  .catch((err) => {
-    console.log('━'.repeat(100));
-    console.log('❌ MONGODB CONNECTION FAILED');
-    console.log('━'.repeat(100));
+
+    console.log('-'.repeat(100));
+    console.log('MongoDB connected successfully');
+    console.log(`Database: ${mongoose.connection.name}`);
+    console.log(`Host: ${mongoose.connection.host}`);
+    console.log('-'.repeat(100) + '\n');
+  } catch (err) {
+    console.log('-'.repeat(100));
+    console.log('MongoDB connection failed');
     console.error('Error:', err.message);
-    console.log('━'.repeat(100));
-    console.log('💡 Troubleshooting:');
-    console.log('   1. Check if MongoDB is running');
-    console.log('   2. Verify MONGODB_URI in .env file');
-    console.log('   3. Check network connectivity');
-    console.log('   4. Ensure MongoDB URI format is correct');
-    console.log('━'.repeat(100) + '\n');
-    process.exit(1);
-  });
+    console.log(`Retrying in ${MONGODB_RETRY_DELAY_MS / 1000} seconds...`);
+    console.log('-'.repeat(100) + '\n');
+    scheduleReconnect();
+  }
+};
+
+const server = app.listen(PORT, () => {
+  console.log('-'.repeat(100));
+  console.log('QR ATTENDANCE SYSTEM API');
+  console.log('-'.repeat(100));
+  console.log(`Server running on port ${PORT}`);
+  console.log(`API URL: http://localhost:${PORT}/api`);
+  console.log(`Documentation: http://localhost:${PORT}/api/docs`);
+  console.log(`Health Check: http://localhost:${PORT}/api/health`);
+  console.log('-'.repeat(100));
+  console.log('Features:');
+  console.log('  - Geo-fencing enabled');
+  console.log('  - Dynamic QR codes (5s refresh)');
+  console.log('  - Graph statistics');
+  console.log('  - Exam eligibility tracking');
+  console.log('-'.repeat(100));
+  console.log('\nServer ready. Waiting for requests...\n');
+
+  void connectToMongo();
+});
 
 // ============== GRACEFUL SHUTDOWN ==============
 
-// Handle MongoDB connection events
 mongoose.connection.on('error', (err) => {
-  console.log('\n' + '━'.repeat(100));
-  console.error('❌ MongoDB Error:', err);
-  console.log('━'.repeat(100) + '\n');
+  console.log('\n' + '-'.repeat(100));
+  console.error('MongoDB error:', err);
+  console.log('-'.repeat(100) + '\n');
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('\n' + '━'.repeat(100));
-  console.warn('⚠️ MongoDB Disconnected');
-  console.log('━'.repeat(100) + '\n');
+  console.log('\n' + '-'.repeat(100));
+  console.warn('MongoDB disconnected');
+  console.log('-'.repeat(100) + '\n');
+  scheduleReconnect();
 });
 
 mongoose.connection.on('reconnected', () => {
-  console.log('\n' + '━'.repeat(100));
-  console.log('✅ MongoDB Reconnected');
-  console.log('━'.repeat(100) + '\n');
+  console.log('\n' + '-'.repeat(100));
+  console.log('MongoDB reconnected');
+  console.log('-'.repeat(100) + '\n');
 });
 
-// Graceful shutdown
+const clearReconnectTimer = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+};
+
 const gracefulShutdown = async (signal) => {
-  console.log(`\n⚠️ ${signal} received. Starting graceful shutdown...`);
-  
+  isShuttingDown = true;
+  clearReconnectTimer();
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
   try {
-    await mongoose.connection.close();
-    console.log('✅ MongoDB connection closed');
-    
-    process.exit(0);
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed');
+    }
+
+    server.close(() => {
+      process.exit(0);
+    });
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    console.error('Error during shutdown:', error);
     process.exit(1);
   }
 };
 
-// Listen for termination signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.log('\n' + '━'.repeat(100));
-  console.error('❌ Unhandled Rejection at:', promise);
+  console.log('\n' + '-'.repeat(100));
+  console.error('Unhandled rejection at:', promise);
   console.error('Reason:', reason);
-  console.log('━'.repeat(100) + '\n');
+  console.log('-'.repeat(100) + '\n');
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.log('\n' + '━'.repeat(100));
-  console.error('❌ Uncaught Exception:', error);
-  console.log('━'.repeat(100) + '\n');
+  console.log('\n' + '-'.repeat(100));
+  console.error('Uncaught exception:', error);
+  console.log('-'.repeat(100) + '\n');
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
-
 // Export app for testing
 module.exports = app;
