@@ -32,8 +32,16 @@ const validateOTP = (otp) => {
 
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
-const isEmailServiceConfigured = () =>
-  Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+const isEmailServiceConfigured = () => {
+  const hasBrevoConfig = Boolean(
+    process.env.BREVO_API_KEY &&
+    (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER)
+  );
+
+  const hasSmtpConfig = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+
+  return hasBrevoConfig || hasSmtpConfig;
+};
 
 const sendDependencyError = (res, message) => res.status(503).json({ message });
 

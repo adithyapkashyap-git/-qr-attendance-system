@@ -4,6 +4,8 @@ const SMTP_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
 const SMTP_PORT = Number(process.env.EMAIL_PORT || 465);
 const SMTP_SECURE = String(process.env.EMAIL_SECURE || 'true').toLowerCase() !== 'false';
 const SMTP_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS || 15000);
+const BREVO_API_URL = process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email';
+const BREVO_TIMEOUT_MS = Number(process.env.BREVO_TIMEOUT_MS || 15000);
 
 let transporter;
 
@@ -54,6 +56,61 @@ const withTimeout = (promise, timeoutMs, message) =>
     }),
   ]);
 
+const sendViaBrevoApi = async (email, otp, name, html) => {
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER;
+  const senderName = process.env.BREVO_SENDER_NAME || 'QR Attendance System';
+
+  if (!process.env.BREVO_API_KEY || !senderEmail) {
+    throw new Error('Brevo API credentials not configured');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BREVO_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(BREVO_API_URL, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+      },
+      body: JSON.stringify({
+        sender: {
+          name: senderName,
+          email: senderEmail,
+        },
+        to: [{ email, name }],
+        subject: 'Email Verification - QR Attendance System',
+        textContent: [
+          `Hello ${name},`,
+          '',
+          `Your OTP for QR Attendance System is: ${otp}`,
+          '',
+          'This OTP is valid for 10 minutes.',
+          'Do not share this OTP with anyone.',
+        ].join('\n'),
+        htmlContent: html,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(`Brevo API request failed with status ${response.status}: ${errorText}`);
+      error.code = 'EBREVO';
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('EMAIL SENT SUCCESSFULLY VIA BREVO');
+    console.log(`Brevo message ID: ${data.messageId || 'n/a'}`);
+    return true;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 // Send OTP email
 const sendOTPEmail = async (email, otp, name) => {
   console.log('\n' + '='.repeat(60));
@@ -65,24 +122,7 @@ const sendOTPEmail = async (email, otp, name) => {
   console.log('='.repeat(60));
 
   try {
-    const mailer = createTransporter();
-
-    const mailOptions = {
-      from: {
-        name: 'QR Attendance System',
-        address: process.env.EMAIL_USER,
-      },
-      to: email,
-      subject: 'Email Verification - QR Attendance System',
-      text: [
-        `Hello ${name},`,
-        '',
-        `Your OTP for QR Attendance System is: ${otp}`,
-        '',
-        'This OTP is valid for 10 minutes.',
-        'Do not share this OTP with anyone.',
-      ].join('\n'),
-      html: `
+    const html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -155,10 +195,35 @@ const sendOTPEmail = async (email, otp, name) => {
           </div>
         </body>
         </html>
-      `,
+      `;
+
+    if (process.env.BREVO_API_KEY) {
+      console.log('Sending email via Brevo API...');
+      const sent = await sendViaBrevoApi(email, otp, name, html);
+      console.log('='.repeat(60) + '\n');
+      return sent;
+    }
+
+    const mailer = createTransporter();
+    const mailOptions = {
+      from: {
+        name: 'QR Attendance System',
+        address: process.env.EMAIL_USER,
+      },
+      to: email,
+      subject: 'Email Verification - QR Attendance System',
+      text: [
+        `Hello ${name},`,
+        '',
+        `Your OTP for QR Attendance System is: ${otp}`,
+        '',
+        'This OTP is valid for 10 minutes.',
+        'Do not share this OTP with anyone.',
+      ].join('\n'),
+      html,
     };
 
-    console.log('Sending email...');
+    console.log('Sending email via SMTP...');
     const info = await withTimeout(
       mailer.sendMail(mailOptions),
       SMTP_TIMEOUT_MS,
@@ -183,8 +248,12 @@ const sendOTPEmail = async (email, otp, name) => {
       console.error('Authentication failed for the configured email account.');
     } else if (error.code === 'ECONNECTION') {
       console.error('SMTP connection failed.');
+    } else if (error.code === 'EBREVO') {
+      console.error('Brevo API rejected the email request.');
     } else if (error.code === 'ESOCKET' || error.code === 'ETIMEOUT') {
       console.error('SMTP request timed out.');
+    } else if (error.name === 'AbortError') {
+      console.error('Brevo API request timed out.');
     }
 
     console.error(error);

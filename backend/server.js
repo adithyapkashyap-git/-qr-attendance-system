@@ -145,7 +145,10 @@ app.get('/api/health', async (req, res) => {
     // Check MongoDB connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     const emailStatus =
-      process.env.EMAIL_USER && process.env.EMAIL_PASSWORD ? 'configured' : 'missing';
+      (process.env.BREVO_API_KEY && (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER)) ||
+      (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD)
+        ? 'configured'
+        : 'missing';
     const registrationStatus =
       dbStatus === 'connected' && emailStatus === 'configured' ? 'ready' : 'unavailable';
     
@@ -177,7 +180,8 @@ app.get('/api/health', async (req, res) => {
       },
       email: {
         status: emailStatus,
-        from: process.env.EMAIL_USER || 'Not configured',
+        provider: process.env.BREVO_API_KEY ? 'brevo-api' : 'smtp',
+        from: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'Not configured',
       },
       services: {
         registration: registrationStatus,

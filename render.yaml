@@ -17,6 +17,12 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: QR Attendance System
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASSWORD
