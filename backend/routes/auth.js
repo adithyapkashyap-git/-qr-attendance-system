@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Lecturer = require('../models/Lecturer');
 const OTP = require('../models/OTP');
@@ -29,10 +30,124 @@ const validateOTP = (otp) => {
   return otp && /^\d{6}$/.test(otp.trim());
 };
 
+const isDatabaseReady = () => mongoose.connection.readyState === 1;
+
+const isEmailServiceConfigured = () =>
+  Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+
+const sendDependencyError = (res, message) => res.status(503).json({ message });
+
+router.use((req, res, next) => {
+  const databaseDependentRoutes = new Set([
+    '/student/send-otp',
+    '/lecturer/send-otp',
+    '/student/register',
+    '/lecturer/register',
+    '/student/login',
+    '/lecturer/login',
+  ]);
+
+  const emailDependentRoutes = new Set([
+    '/student/send-otp',
+    '/lecturer/send-otp',
+  ]);
+
+  if (databaseDependentRoutes.has(req.path) && !isDatabaseReady()) {
+    return sendDependencyError(
+      res,
+      'Authentication service is temporarily unavailable because the database is disconnected.'
+    );
+  }
+
+  if (emailDependentRoutes.has(req.path) && !isEmailServiceConfigured()) {
+    return sendDependencyError(
+      res,
+      'OTP email service is not configured on the server. Please contact the administrator.'
+    );
+  }
+
+  next();
+});
+
+const createSendOTPHandler = ({ roleLabel, UserModel }) => async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    const normalizedEmail = email?.toLowerCase().trim();
+
+    console.log('\n' + '='.repeat(80));
+    console.log(`[${new Date().toISOString()}] OTP REQUEST - ${roleLabel}`);
+    console.log(`   Email: ${email}`);
+    console.log(`   Name: ${name}`);
+    console.log('='.repeat(80));
+
+    if (!email || !name) {
+      return res.status(400).json({ message: 'Email and name are required' });
+    }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    const existingUser = await UserModel.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    const existingOTP = await OTP.findOne({ email: normalizedEmail });
+    if (existingOTP && existingOTP.resendCount >= 3) {
+      return res.status(429).json({
+        message: 'Maximum OTP resend limit (3) reached. Please try again after 10 minutes.'
+      });
+    }
+
+    const otp = generateOTP();
+    const emailAccepted = await sendOTPEmail(normalizedEmail, otp, name);
+
+    if (!emailAccepted) {
+      return res.status(500).json({
+        message: 'Failed to send OTP email. Please try again in a moment.'
+      });
+    }
+
+    const nextResendCount = existingOTP ? existingOTP.resendCount + 1 : 0;
+    await OTP.findOneAndUpdate(
+      { email: normalizedEmail },
+      {
+        email: normalizedEmail,
+        otp,
+        attempts: 0,
+        resendCount: nextResendCount,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    console.log(`OTP sent successfully to ${normalizedEmail}`);
+
+    return res.json({
+      message: 'OTP sent successfully to your email. Please check your inbox.',
+      email: normalizedEmail,
+      remainingResends: Math.max(0, 3 - nextResendCount)
+    });
+  } catch (error) {
+    console.error('Error in send-otp:', error);
+    return res.status(500).json({ message: 'Failed to send OTP', error: error.message });
+  }
+};
+
 // ============== SEND OTP ==============
 
-// Send OTP for Student Registration
-router.post('/student/send-otp', async (req, res) => {
+router.post('/student/send-otp', createSendOTPHandler({
+  roleLabel: 'Student',
+  UserModel: Student,
+}));
+
+router.post('/lecturer/send-otp', createSendOTPHandler({
+  roleLabel: 'Lecturer',
+  UserModel: Lecturer,
+}));
+
+// Legacy handler retained temporarily for reference only.
+router.post('/__legacy/student/send-otp', async (req, res) => {
   try {
     const { email, name } = req.body;
 
@@ -73,10 +188,41 @@ router.post('/student/send-otp', async (req, res) => {
 
     // Generate OTP
     const otp = generateOTP();
+    const emailAccepted = await sendOTPEmail(email, otp, name);
+    if (!emailAccepted) {
+      console.error('Failed to send email');
+      return res.status(500).json({
+        message: 'Failed to send OTP email. Please check your email address.'
+      });
+    }
+
+    const nextResendCount = existingOTP ? existingOTP.resendCount + 1 : 0;
+    await OTP.findOneAndUpdate(
+      { email: email.toLowerCase().trim() },
+      {
+        email: email.toLowerCase().trim(),
+        otp,
+        attempts: 0,
+        resendCount: nextResendCount,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     
     // 📊 MONITORING: Log generated OTP with validity
     console.log(`🔑 Generated OTP: ${otp} (Valid for 10 minutes)`);
     console.log(`📤 Sending OTP to: ${email}`);
+
+    console.log('OTP saved to database');
+    console.log(`Resend count: ${nextResendCount}/3`);
+    console.log('OTP sent successfully');
+    console.log(`Expires at: ${new Date(Date.now() + 600000).toISOString()}`);
+    console.log('='.repeat(80) + '\n');
+
+    return res.json({
+      message: 'OTP sent successfully to your email. Please check your inbox.',
+      email: email,
+      remainingResends: Math.max(0, 3 - nextResendCount)
+    });
 
     // Delete any existing OTP for this email
     await OTP.deleteMany({ email: email.toLowerCase().trim() });
@@ -94,7 +240,7 @@ router.post('/student/send-otp', async (req, res) => {
     console.log(`🔄 Resend count: ${resendCount}/3`);
 
     // Send OTP email
-    const emailSent = await sendOTPEmail(email, otp, name);
+    const emailSent = true;
 
     if (!emailSent) {
       console.error('❌ Failed to send email');
@@ -109,7 +255,7 @@ router.post('/student/send-otp', async (req, res) => {
     res.json({ 
       message: 'OTP sent successfully to your email. Please check your inbox.',
       email: email,
-      remainingResends: 3 - resendCount - 1
+      remainingResends: Math.max(0, 3 - resendCount)
     });
   } catch (error) {
     console.error('❌ Error in send-otp:', error);
@@ -118,8 +264,8 @@ router.post('/student/send-otp', async (req, res) => {
   }
 });
 
-// Send OTP for Lecturer Registration
-router.post('/lecturer/send-otp', async (req, res) => {
+// Legacy handler retained temporarily for reference only.
+router.post('/__legacy/lecturer/send-otp', async (req, res) => {
   try {
     const { email, name } = req.body;
 
@@ -160,10 +306,41 @@ router.post('/lecturer/send-otp', async (req, res) => {
 
     // Generate OTP
     const otp = generateOTP();
+    const emailAccepted = await sendOTPEmail(email, otp, name);
+    if (!emailAccepted) {
+      console.error('Failed to send email');
+      return res.status(500).json({
+        message: 'Failed to send OTP email. Please check your email address.'
+      });
+    }
+
+    const nextResendCount = existingOTP ? existingOTP.resendCount + 1 : 0;
+    await OTP.findOneAndUpdate(
+      { email: email.toLowerCase().trim() },
+      {
+        email: email.toLowerCase().trim(),
+        otp,
+        attempts: 0,
+        resendCount: nextResendCount,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     
     // 📊 MONITORING: Log generated OTP with validity
     console.log(`🔑 Generated OTP: ${otp} (Valid for 10 minutes)`);
     console.log(`📤 Sending OTP to: ${email}`);
+
+    console.log('OTP saved to database');
+    console.log(`Resend count: ${nextResendCount}/3`);
+    console.log('OTP sent successfully');
+    console.log(`Expires at: ${new Date(Date.now() + 600000).toISOString()}`);
+    console.log('='.repeat(80) + '\n');
+
+    return res.json({
+      message: 'OTP sent successfully to your email. Please check your inbox.',
+      email: email,
+      remainingResends: Math.max(0, 3 - nextResendCount)
+    });
 
     // Delete any existing OTP for this email
     await OTP.deleteMany({ email: email.toLowerCase().trim() });
@@ -181,7 +358,7 @@ router.post('/lecturer/send-otp', async (req, res) => {
     console.log(`🔄 Resend count: ${resendCount}/3`);
 
     // Send OTP email
-    const emailSent = await sendOTPEmail(email, otp, name);
+    const emailSent = true;
 
     if (!emailSent) {
       console.error('❌ Failed to send email');
@@ -196,7 +373,7 @@ router.post('/lecturer/send-otp', async (req, res) => {
     res.json({ 
       message: 'OTP sent successfully to your email. Please check your inbox.',
       email: email,
-      remainingResends: 3 - resendCount - 1
+      remainingResends: Math.max(0, 3 - resendCount)
     });
   } catch (error) {
     console.error('❌ Error in send-otp:', error);

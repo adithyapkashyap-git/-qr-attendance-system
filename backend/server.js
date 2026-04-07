@@ -144,6 +144,10 @@ app.get('/api/health', async (req, res) => {
   try {
     // Check MongoDB connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const emailStatus =
+      process.env.EMAIL_USER && process.env.EMAIL_PASSWORD ? 'configured' : 'missing';
+    const registrationStatus =
+      dbStatus === 'connected' && emailStatus === 'configured' ? 'ready' : 'unavailable';
     
     // Get database stats
     let dbStats = {};
@@ -158,10 +162,10 @@ app.get('/api/health', async (req, res) => {
     }
 
     res.json({
-      status: dbStatus === 'connected' ? 'OK' : 'DEGRADED',
-      message: dbStatus === 'connected'
+      status: registrationStatus === 'ready' ? 'OK' : 'DEGRADED',
+      message: registrationStatus === 'ready'
         ? 'QR Attendance System API is running'
-        : 'QR Attendance System API is running without a database connection',
+        : 'QR Attendance System API is running with registration dependencies unavailable',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
@@ -170,6 +174,13 @@ app.get('/api/health', async (req, res) => {
         name: mongoose.connection.name || 'Not connected',
         host: mongoose.connection.host || 'Not connected',
         ...dbStats
+      },
+      email: {
+        status: emailStatus,
+        from: process.env.EMAIL_USER || 'Not configured',
+      },
+      services: {
+        registration: registrationStatus,
       },
       memory: {
         usage: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
