@@ -324,6 +324,7 @@ app.use((err, req, res, next) => {
 // ============== DATABASE CONNECTION ==============
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr-attendance';
 const MONGODB_RETRY_DELAY_MS = 10000;
 let reconnectTimer = null;
@@ -370,14 +371,14 @@ const connectToMongo = async () => {
   }
 };
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log('-'.repeat(100));
   console.log('QR ATTENDANCE SYSTEM API');
   console.log('-'.repeat(100));
-  console.log(`Server running on port ${PORT}`);
-  console.log(`API URL: http://localhost:${PORT}/api`);
-  console.log(`Documentation: http://localhost:${PORT}/api/docs`);
-  console.log(`Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`Public API bind target: http://${HOST}:${PORT}/api`);
+  console.log(`Documentation: http://${HOST}:${PORT}/api/docs`);
+  console.log(`Health Check: http://${HOST}:${PORT}/api/health`);
   console.log('-'.repeat(100));
   console.log('Features:');
   console.log('  - Geo-fencing enabled');

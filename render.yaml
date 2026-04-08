@@ -11,6 +11,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.0
+      - key: HOST
+        value: 0.0.0.0
       - key: FRONTEND_URL
         value: https://adithyapkashyap-git.github.io/-qr-attendance-system/
       - key: MONGODB_URI
