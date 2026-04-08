@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Lecturer = require('../models/Lecturer');
 const OTP = require('../models/OTP');
-const { generateOTP, sendOTPEmail } = require('../services/emailService');
+const { generateOTP, sendOTPEmail, getEmailServiceStatus } = require('../services/emailService');
 
 // ============== HELPER FUNCTIONS ==============
 
@@ -32,16 +32,7 @@ const validateOTP = (otp) => {
 
 const isDatabaseReady = () => mongoose.connection.readyState === 1;
 
-const isEmailServiceConfigured = () => {
-  const hasBrevoConfig = Boolean(
-    process.env.BREVO_API_KEY &&
-    (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER)
-  );
-
-  const hasSmtpConfig = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
-
-  return hasBrevoConfig || hasSmtpConfig;
-};
+const isEmailServiceConfigured = () => getEmailServiceStatus().ready;
 
 const sendDependencyError = (res, message) => res.status(503).json({ message });
 
@@ -68,9 +59,10 @@ router.use((req, res, next) => {
   }
 
   if (emailDependentRoutes.has(req.path) && !isEmailServiceConfigured()) {
+    const emailStatus = getEmailServiceStatus();
     return sendDependencyError(
       res,
-      'OTP email service is not configured on the server. Please contact the administrator.'
+      emailStatus.message
     );
   }
 

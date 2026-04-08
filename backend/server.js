@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { getEmailServiceStatus } = require('./services/emailService');
 
 dotenv.config();
 
@@ -139,18 +140,19 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // Detailed health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Check MongoDB connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    const emailStatus =
-      (process.env.BREVO_API_KEY && (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER)) ||
-      (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD)
-        ? 'configured'
-        : 'missing';
+    const emailServiceStatus = getEmailServiceStatus();
+    const emailStatus = emailServiceStatus.ready ? 'configured' : emailServiceStatus.mode;
     const registrationStatus =
-      dbStatus === 'connected' && emailStatus === 'configured' ? 'ready' : 'unavailable';
+      dbStatus === 'connected' && emailServiceStatus.ready ? 'ready' : 'unavailable';
     
     // Get database stats
     let dbStats = {};
@@ -180,8 +182,9 @@ app.get('/api/health', async (req, res) => {
       },
       email: {
         status: emailStatus,
-        provider: process.env.BREVO_API_KEY ? 'brevo-api' : 'smtp',
+        provider: emailServiceStatus.mode,
         from: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'Not configured',
+        message: emailServiceStatus.message,
       },
       services: {
         registration: registrationStatus,

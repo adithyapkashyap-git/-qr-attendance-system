@@ -13,6 +13,8 @@ const API_TIMEOUT_MS = IS_PRODUCTION ? 90000 : 30000;
 const BACKEND_WAKE_UP_MESSAGE = IS_PRODUCTION
   ? 'The live server is starting up or temporarily unavailable. Please wait about a minute and try again.'
   : 'Cannot connect to the backend server. Please make sure it is running.';
+const BACKEND_WAKE_RETRY_ATTEMPTS = IS_PRODUCTION ? 8 : 1;
+const BACKEND_WAKE_RETRY_DELAY_MS = 15000;
 const warmupClient = axios.create({
   baseURL: API_URL,
   headers: {
@@ -24,6 +26,7 @@ const warmupClient = axios.create({
 let backendWarmupPromise = null;
 let lastBackendWarmupAt = 0;
 const BACKEND_WARMUP_CACHE_MS = 5 * 60 * 1000;
+const BACKEND_RETRYABLE_STATUSES = new Set([502, 503, 504, 521, 522, 523, 524]);
 
 const getCurrentRoute = () => {
   const hashPath = window.location.hash.replace(/^#/, '') || '/';
@@ -58,6 +61,20 @@ const normalizeErrorMessage = (error) => {
   return error;
 };
 
+const sleep = (ms) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const shouldRetryWarmupError = (error) => {
+  const status = error.response?.status;
+  return (
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ERR_NETWORK' ||
+    BACKEND_RETRYABLE_STATUSES.has(status)
+  );
+};
+
 const shouldWarmBackend = () => IS_PRODUCTION && API_URL.startsWith('https://');
 
 const warmUpBackend = async () => {
@@ -70,17 +87,32 @@ const warmUpBackend = async () => {
   }
 
   if (!backendWarmupPromise) {
-    backendWarmupPromise = warmupClient
-      .get('/health')
-      .then(() => {
-        lastBackendWarmupAt = Date.now();
-      })
-      .catch((error) => {
-        throw normalizeErrorMessage(error);
-      })
-      .finally(() => {
-        backendWarmupPromise = null;
-      });
+    backendWarmupPromise = (async () => {
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= BACKEND_WAKE_RETRY_ATTEMPTS; attempt += 1) {
+        try {
+          await warmupClient.get('/health');
+          lastBackendWarmupAt = Date.now();
+          return;
+        } catch (error) {
+          lastError = normalizeErrorMessage(error);
+
+          if (!shouldRetryWarmupError(lastError) || attempt === BACKEND_WAKE_RETRY_ATTEMPTS) {
+            throw lastError;
+          }
+
+          console.warn(
+            `Backend warm-up attempt ${attempt}/${BACKEND_WAKE_RETRY_ATTEMPTS} failed. Retrying in ${BACKEND_WAKE_RETRY_DELAY_MS / 1000}s...`
+          );
+          await sleep(BACKEND_WAKE_RETRY_DELAY_MS);
+        }
+      }
+
+      throw lastError;
+    })().finally(() => {
+      backendWarmupPromise = null;
+    });
   }
 
   return backendWarmupPromise;

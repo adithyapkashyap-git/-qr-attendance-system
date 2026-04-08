@@ -6,11 +6,60 @@ const SMTP_SECURE = String(process.env.EMAIL_SECURE || 'true').toLowerCase() !==
 const SMTP_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS || 15000);
 const BREVO_API_URL = process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email';
 const BREVO_TIMEOUT_MS = Number(process.env.BREVO_TIMEOUT_MS || 15000);
+const SMTP_BLOCKED_PORTS = new Set([25, 465, 587]);
 
 let transporter;
 
 // Generate 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const isRenderEnvironment = () =>
+  Boolean(
+    process.env.RENDER ||
+    process.env.RENDER_SERVICE_ID ||
+    process.env.RENDER_INSTANCE_ID ||
+    process.env.RENDER_EXTERNAL_HOSTNAME
+  );
+
+const getEmailServiceStatus = () => {
+  const hasBrevoConfig = Boolean(
+    process.env.BREVO_API_KEY &&
+    (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER)
+  );
+
+  if (hasBrevoConfig) {
+    return {
+      ready: true,
+      mode: 'brevo-api',
+      message: 'Brevo API is configured',
+    };
+  }
+
+  const hasSmtpConfig = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+  const smtpBlockedOnRender = isRenderEnvironment() && SMTP_BLOCKED_PORTS.has(SMTP_PORT);
+
+  if (hasSmtpConfig && smtpBlockedOnRender) {
+    return {
+      ready: false,
+      mode: 'smtp-blocked',
+      message: 'SMTP email is blocked on this Render environment. Configure BREVO_API_KEY and BREVO_SENDER_EMAIL for OTP delivery.',
+    };
+  }
+
+  if (hasSmtpConfig) {
+    return {
+      ready: true,
+      mode: 'smtp',
+      message: 'SMTP is configured',
+    };
+  }
+
+  return {
+    ready: false,
+    mode: 'missing',
+    message: 'OTP email service is not configured on the server.',
+  };
+};
 
 const createTransporter = () => {
   if (transporter) {
@@ -25,6 +74,13 @@ const createTransporter = () => {
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
     throw new Error('Email credentials not configured');
+  }
+
+  const emailServiceStatus = getEmailServiceStatus();
+  if (!emailServiceStatus.ready && emailServiceStatus.mode === 'smtp-blocked') {
+    const error = new Error(emailServiceStatus.message);
+    error.code = 'ESMTPUNSUPPORTED';
+    throw error;
   }
 
   transporter = nodemailer.createTransport({
@@ -248,6 +304,8 @@ const sendOTPEmail = async (email, otp, name) => {
       console.error('Authentication failed for the configured email account.');
     } else if (error.code === 'ECONNECTION') {
       console.error('SMTP connection failed.');
+    } else if (error.code === 'ESMTPUNSUPPORTED') {
+      console.error('The current hosted environment blocks SMTP. Use an HTTPS email API such as Brevo.');
     } else if (error.code === 'EBREVO') {
       console.error('Brevo API rejected the email request.');
     } else if (error.code === 'ESOCKET' || error.code === 'ETIMEOUT') {
@@ -263,4 +321,4 @@ const sendOTPEmail = async (email, otp, name) => {
   }
 };
 
-module.exports = { generateOTP, sendOTPEmail };
+module.exports = { generateOTP, sendOTPEmail, getEmailServiceStatus };

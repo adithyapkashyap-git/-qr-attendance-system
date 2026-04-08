@@ -12,4 +12,25 @@ jobs:
 
     steps:
       - name: Warm backend
-        run: curl --fail --silent --show-error --max-time 120 https://qr-attendance-system-q8yu.onrender.com/api/health
+        shell: bash
+        run: |
+          url="https://qr-attendance-system-q8yu.onrender.com/api/health"
+          attempts=8
+          delay_seconds=20
+
+          for attempt in $(seq 1 "$attempts"); do
+            echo "Warm-up attempt ${attempt}/${attempts}"
+
+            if curl --fail --silent --show-error --max-time 120 "$url"; then
+              echo "Backend is reachable."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$attempts" ]; then
+              echo "Backend still unavailable. Sleeping ${delay_seconds}s before retry..."
+              sleep "$delay_seconds"
+            fi
+          done
+
+          echo "Backend never became reachable after ${attempts} attempts." >&2
+          exit 1
