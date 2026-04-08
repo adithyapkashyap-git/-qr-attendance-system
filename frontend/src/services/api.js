@@ -2,13 +2,89 @@ import axios from 'axios';
 
 // ============== API CONFIGURATION ==============
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DEFAULT_PRODUCTION_API_URL = 'https://qr-attendance-system-q8yu.onrender.com/api';
+const DEFAULT_DEVELOPMENT_API_URL = 'http://localhost:5000/api';
+const API_URL = (
+  process.env.REACT_APP_API_URL?.trim() ||
+  (IS_PRODUCTION ? DEFAULT_PRODUCTION_API_URL : DEFAULT_DEVELOPMENT_API_URL)
+).replace(/\/+$/, '');
+const API_TIMEOUT_MS = IS_PRODUCTION ? 90000 : 30000;
+const BACKEND_WAKE_UP_MESSAGE = IS_PRODUCTION
+  ? 'The live server is starting up or temporarily unavailable. Please wait about a minute and try again.'
+  : 'Cannot connect to the backend server. Please make sure it is running.';
+const warmupClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: API_TIMEOUT_MS,
+});
+
+let backendWarmupPromise = null;
+let lastBackendWarmupAt = 0;
+const BACKEND_WARMUP_CACHE_MS = 5 * 60 * 1000;
+
 const getCurrentRoute = () => {
   const hashPath = window.location.hash.replace(/^#/, '') || '/';
   return hashPath.startsWith('/') ? hashPath : `/${hashPath}`;
 };
 
-// API URL - uses environment variable for production, localhost for development
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const normalizeErrorMessage = (error) => {
+  const status = error.response?.status;
+
+  if ([521, 522, 523, 524].includes(status)) {
+    const message = BACKEND_WAKE_UP_MESSAGE;
+    if (!error.response.data || typeof error.response.data !== 'object') {
+      error.response.data = {};
+    }
+    error.response.data.message = message;
+    error.message = message;
+    return error;
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    error.message = IS_PRODUCTION
+      ? `${BACKEND_WAKE_UP_MESSAGE} The first request can take longer on hosted backends.`
+      : 'Request timeout. Please try again.';
+    return error;
+  }
+
+  if (error.code === 'ERR_NETWORK') {
+    error.message = BACKEND_WAKE_UP_MESSAGE;
+    return error;
+  }
+
+  return error;
+};
+
+const shouldWarmBackend = () => IS_PRODUCTION && API_URL.startsWith('https://');
+
+const warmUpBackend = async () => {
+  if (!shouldWarmBackend()) {
+    return;
+  }
+
+  if (Date.now() - lastBackendWarmupAt < BACKEND_WARMUP_CACHE_MS) {
+    return;
+  }
+
+  if (!backendWarmupPromise) {
+    backendWarmupPromise = warmupClient
+      .get('/health')
+      .then(() => {
+        lastBackendWarmupAt = Date.now();
+      })
+      .catch((error) => {
+        throw normalizeErrorMessage(error);
+      })
+      .finally(() => {
+        backendWarmupPromise = null;
+      });
+  }
+
+  return backendWarmupPromise;
+};
 
 console.log('\n' + '━'.repeat(80));
 console.log('🔗 API SERVICE INITIALIZATION');
@@ -26,7 +102,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds timeout for slow connections
+  timeout: API_TIMEOUT_MS,
   withCredentials: true, // Send cookies with requests
 });
 
@@ -109,6 +185,7 @@ api.interceptors.response.use(
   },
   (error) => {
     // Log error response
+    normalizeErrorMessage(error);
     console.log('\n' + '━'.repeat(80));
     console.log('❌ ERROR RESPONSE');
     console.log('━'.repeat(80));
@@ -184,10 +261,10 @@ api.interceptors.response.use(
     // Handle network/timeout errors
     if (error.code === 'ECONNABORTED') {
       console.error('⏱️ REQUEST TIMEOUT: Server took too long to respond');
-      error.message = 'Request timeout. Please try again.';
+      error.message = normalizeErrorMessage(error).message;
     } else if (error.code === 'ERR_NETWORK') {
       console.error('🌐 NETWORK ERROR: Cannot connect to server');
-      error.message = 'Cannot connect to server. Please check your internet connection.';
+      error.message = normalizeErrorMessage(error).message;
     }
     
     return Promise.reject(error);
@@ -198,23 +275,25 @@ api.interceptors.response.use(
 
 export const authAPI = {
   // ✅ STEP 1: Send OTP for Student Registration
-  sendStudentOTP: (email, name) => {
+  sendStudentOTP: async (email, name) => {
     console.log('\n📧 SENDING STUDENT OTP');
     console.log('   Email:', email);
     console.log('   Name:', name);
+    await warmUpBackend();
     return api.post('/auth/student/send-otp', { email, name });
   },
   
   // ✅ STEP 1: Send OTP for Lecturer Registration
-  sendLecturerOTP: (email, name) => {
+  sendLecturerOTP: async (email, name) => {
     console.log('\n📧 SENDING LECTURER OTP');
     console.log('   Email:', email);
     console.log('   Name:', name);
+    await warmUpBackend();
     return api.post('/auth/lecturer/send-otp', { email, name });
   },
   
   // ✅ STEP 2: Register Student with OTP Verification
-  registerStudent: (data) => {
+  registerStudent: async (data) => {
     console.log('\n👤 REGISTERING STUDENT');
     console.log('   Name:', data.name);
     console.log('   USN:', data.usn);
@@ -224,6 +303,7 @@ export const authAPI = {
     console.log('   Password:', data.password ? '***HIDDEN***' : 'Missing');
     console.log('   OTP:', data.otp ? `***${data.otp.slice(-2)}` : 'Missing');
     
+    await warmUpBackend();
     return api.post('/auth/student/register', {
       name: data.name,
       usn: data.usn,
@@ -236,7 +316,7 @@ export const authAPI = {
   },
   
   // ✅ STEP 2: Register Lecturer with OTP Verification
-  registerLecturer: (data) => {
+  registerLecturer: async (data) => {
     console.log('\n👨‍🏫 REGISTERING LECTURER');
     console.log('   Name:', data.name);
     console.log('   Employee ID:', data.employeeId);
@@ -246,6 +326,7 @@ export const authAPI = {
     console.log('   Password:', data.password ? '***HIDDEN***' : 'Missing');
     console.log('   OTP:', data.otp ? `***${data.otp.slice(-2)}` : 'Missing');
     
+    await warmUpBackend();
     return api.post('/auth/lecturer/register', {
       name: data.name,
       employeeId: data.employeeId,
@@ -258,18 +339,20 @@ export const authAPI = {
   },
   
   // ✅ Student Login (No OTP needed)
-  loginStudent: (usn, password) => {
+  loginStudent: async (usn, password) => {
     console.log('\n🔐 STUDENT LOGIN');
     console.log('   USN:', usn);
     console.log('   Password:', password ? '***HIDDEN***' : 'Missing');
+    await warmUpBackend();
     return api.post('/auth/student/login', { usn, password });
   },
   
   // ✅ Lecturer Login (No OTP needed)
-  loginLecturer: (employeeId, password) => {
+  loginLecturer: async (employeeId, password) => {
     console.log('\n🔐 LECTURER LOGIN');
     console.log('   Employee ID:', employeeId);
     console.log('   Password:', password ? '***HIDDEN***' : 'Missing');
+    await warmUpBackend();
     return api.post('/auth/lecturer/login', { employeeId, password });
   },
   

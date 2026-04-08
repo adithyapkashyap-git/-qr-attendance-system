@@ -1,0 +1,15 @@
+name: Keep Backend Awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Warm backend
+        run: curl --fail --silent --show-error --max-time 120 https://qr-attendance-system-q8yu.onrender.com/api/health
