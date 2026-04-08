@@ -6,7 +6,7 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ping
     autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION

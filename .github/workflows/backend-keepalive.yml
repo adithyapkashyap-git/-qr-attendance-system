@@ -14,7 +14,7 @@ jobs:
       - name: Warm backend
         shell: bash
         run: |
-          url="https://qr-attendance-system-q8yu.onrender.com/api/health"
+          url="https://qr-attendance-system-q8yu.onrender.com/api/ping"
           attempts=8
           delay_seconds=20
 

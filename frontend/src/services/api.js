@@ -13,6 +13,7 @@ const API_TIMEOUT_MS = IS_PRODUCTION ? 90000 : 30000;
 const BACKEND_WAKE_UP_MESSAGE = IS_PRODUCTION
   ? 'The live server is starting up or temporarily unavailable. Please wait about a minute and try again.'
   : 'Cannot connect to the backend server. Please make sure it is running.';
+const BACKEND_PING_PATH = '/ping';
 const BACKEND_WAKE_RETRY_ATTEMPTS = IS_PRODUCTION ? 8 : 1;
 const BACKEND_WAKE_RETRY_DELAY_MS = 15000;
 const warmupClient = axios.create({
@@ -92,7 +93,7 @@ const warmUpBackend = async () => {
 
       for (let attempt = 1; attempt <= BACKEND_WAKE_RETRY_ATTEMPTS; attempt += 1) {
         try {
-          await warmupClient.get('/health');
+          await warmupClient.get(BACKEND_PING_PATH);
           lastBackendWarmupAt = Date.now();
           return;
         } catch (error) {

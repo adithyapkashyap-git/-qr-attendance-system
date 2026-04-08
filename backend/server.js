@@ -144,6 +144,15 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+app.get('/api/ping', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'pong',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Detailed health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
@@ -154,9 +163,11 @@ app.get('/api/health', async (req, res) => {
     const registrationStatus =
       dbStatus === 'connected' && emailServiceStatus.ready ? 'ready' : 'unavailable';
     
-    // Get database stats
+    const includeDatabaseStats = req.query.details === '1';
+
+    // Keep health checks lightweight unless detailed stats are explicitly requested.
     let dbStats = {};
-    if (mongoose.connection.readyState === 1) {
+    if (includeDatabaseStats && mongoose.connection.readyState === 1) {
       const db = mongoose.connection.db;
       const stats = await db.stats();
       dbStats = {
@@ -330,6 +341,7 @@ const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/qr-attendance';
 const MONGODB_RETRY_DELAY_MS = 10000;
+const EXIT_ON_UNCAUGHT_EXCEPTION = String(process.env.EXIT_ON_UNCAUGHT_EXCEPTION || 'false').toLowerCase() === 'true';
 let reconnectTimer = null;
 let isShuttingDown = false;
 
@@ -456,7 +468,13 @@ process.on('uncaughtException', (error) => {
   console.log('\n' + '-'.repeat(100));
   console.error('Uncaught exception:', error);
   console.log('-'.repeat(100) + '\n');
-  gracefulShutdown('UNCAUGHT_EXCEPTION');
+
+  if (EXIT_ON_UNCAUGHT_EXCEPTION) {
+    gracefulShutdown('UNCAUGHT_EXCEPTION');
+    return;
+  }
+
+  console.warn('Continuing to run after uncaught exception to preserve service availability.');
 });
 // Export app for testing
 module.exports = app;
