@@ -2795,3 +2795,451 @@
     font-size: 13px;
   }
 }
+
+/* Tailwind-powered student UI refresh */
+.attendance-stats-container,
+  .qr-scanner-container,
+  .attendance-history-container {
+    @apply mx-auto max-w-7xl px-0 py-2 sm:py-4;
+  }
+
+  .stats-header {
+    @apply mb-6;
+  }
+
+  .stats-header h2 {
+    @apply mb-4 text-2xl font-bold text-slate-950 sm:text-3xl;
+  }
+
+  .tab-navigation {
+    @apply mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-soft;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .tab-navigation button {
+    @apply min-h-11 flex-1 whitespace-nowrap rounded-lg border-0 px-4 py-3 text-sm font-semibold text-slate-600;
+  }
+
+  .tab-navigation button.active {
+    @apply bg-brand-600 text-white;
+    border-bottom-color: transparent;
+  }
+
+  .tab-navigation button:hover {
+    @apply bg-slate-100 text-brand-700;
+  }
+
+  .stats-grid-main {
+    @apply mb-6 grid grid-cols-1 gap-4 md:grid-cols-3;
+  }
+
+  .stat-card-large,
+  .progress-card,
+  .chart-container,
+  .chart-box,
+  .eligibility-card,
+  .scanner-card,
+  .location-status-card,
+  .attendance-card,
+  .history-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-soft;
+  }
+
+  .stat-card-large {
+    @apply gap-4 p-5;
+  }
+
+  .stat-card-large:hover,
+  .progress-card:hover,
+  .chart-container:hover,
+  .chart-box:hover,
+  .scanner-card:hover {
+    @apply -translate-y-0.5 shadow-lift;
+  }
+
+  .stat-card-large::before,
+  .bar-fill::before {
+    display: none;
+  }
+
+  .stat-card-large.present {
+    @apply border-l-4 border-l-emerald-500;
+  }
+
+  .stat-card-large.absent {
+    @apply border-l-4 border-l-red-500;
+  }
+
+  .stat-card-large.total {
+    @apply border-l-4 border-l-brand-600;
+  }
+
+  .stat-icon-wrapper {
+    @apply h-14 w-14 rounded-xl text-2xl;
+    animation: none;
+  }
+
+  .stat-card-large.present .stat-icon-wrapper,
+  .present .stat-icon-wrapper {
+    @apply bg-emerald-50 text-emerald-600;
+    background-image: none;
+  }
+
+  .stat-card-large.absent .stat-icon-wrapper,
+  .absent .stat-icon-wrapper {
+    @apply bg-red-50 text-red-600;
+    background-image: none;
+  }
+
+  .stat-card-large.total .stat-icon-wrapper,
+  .total .stat-icon-wrapper {
+    @apply bg-brand-50 text-brand-600;
+    background-image: none;
+  }
+
+  .stat-content h3 {
+    @apply mb-1 text-xs font-semibold uppercase tracking-normal text-slate-500;
+  }
+
+  .stat-number {
+    @apply text-3xl font-bold text-slate-950;
+  }
+
+  .stat-label {
+    @apply text-xs text-slate-500;
+  }
+
+  .progress-card,
+  .chart-container,
+  .chart-box,
+  .eligibility-card,
+  .scanner-card {
+    @apply p-5 sm:p-6 lg:p-8;
+  }
+
+  .progress-card h3,
+  .chart-container h3,
+  .chart-box h3,
+  .eligibility-header h2,
+  .scanner-header h2 {
+    @apply text-xl font-bold text-slate-950 sm:text-2xl;
+  }
+
+  .percentage,
+  .progress-text .percentage {
+    @apply text-4xl font-bold;
+  }
+
+  .progress-text .label,
+  .progress-info,
+  .scanner-header p,
+  .mode-content p,
+  .empty-state {
+    @apply text-sm text-slate-500;
+  }
+
+  .bar-wrapper,
+  .subject-progress {
+    @apply rounded-full bg-slate-100;
+  }
+
+  .bar-fill {
+    @apply rounded-full bg-brand-600;
+    background-image: none;
+  }
+
+  .bar-label,
+  .subject-name,
+  .mode-content h3 {
+    @apply font-semibold text-slate-700;
+  }
+
+  .bar-percentage {
+    @apply font-semibold text-brand-600;
+  }
+
+  .graphs-section {
+    @apply grid grid-cols-1 gap-5 xl:grid-cols-2;
+  }
+
+  .chart-box.full-width {
+    @apply xl:col-span-2;
+  }
+
+  .custom-tooltip {
+    @apply rounded-lg border border-slate-200 bg-white p-3 shadow-lg;
+  }
+
+  .eligibility-card {
+    @apply p-6 sm:p-8;
+  }
+
+  .eligibility-card.eligible {
+    @apply border-emerald-300;
+  }
+
+  .eligibility-card.not-eligible {
+    @apply border-red-300;
+  }
+
+  .eligibility-content {
+    @apply grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr];
+  }
+
+  .status-badge,
+  .status-chip {
+    @apply rounded-full px-4 py-2 text-sm font-semibold;
+  }
+
+  .status-badge.eligible,
+  .status-chip.present {
+    @apply border border-emerald-200 bg-emerald-50 text-emerald-700;
+    background-image: none;
+  }
+
+  .status-badge.not-eligible,
+  .status-chip.absent {
+    @apply border border-red-200 bg-red-50 text-red-700;
+    background-image: none;
+  }
+
+  .eligibility-stats {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-2;
+  }
+
+  .stat-item {
+    @apply rounded-lg bg-slate-50 p-3;
+  }
+
+  .warning-box,
+  .success-box,
+  .scanner-tip {
+    @apply rounded-xl border-l-4 p-4;
+    background-image: none;
+  }
+
+  .warning-box,
+  .scanner-tip.warning {
+    @apply border-amber-500 bg-amber-50 text-amber-800;
+  }
+
+  .success-box,
+  .scanner-tip.info {
+    @apply border-emerald-500 bg-emerald-50 text-emerald-800;
+  }
+
+  .subject-eligibility {
+    @apply mt-6 border-t border-slate-200 pt-6;
+  }
+
+  .subject-eligibility-item {
+    @apply grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-4 lg:grid-cols-[240px_1fr_80px];
+  }
+
+  .qr-scanner-container {
+    @apply max-w-3xl;
+  }
+
+  .scanner-card {
+    @apply rounded-2xl;
+  }
+
+  .scanner-header {
+    @apply mb-6 text-center;
+  }
+
+  .scanner-icon {
+    @apply mb-4 text-5xl text-brand-600;
+    animation: none;
+  }
+
+  .location-status-card {
+    @apply mb-5 rounded-2xl p-5;
+    background-image: none;
+  }
+
+  .location-status-card.active {
+    @apply border-emerald-200 bg-emerald-50;
+    background-image: none;
+  }
+
+  .location-status-card.inactive {
+    @apply border-red-200 bg-red-50;
+    background-image: none;
+  }
+
+  .location-header {
+    @apply mb-4 gap-3;
+  }
+
+  .location-header h3 {
+    @apply text-base font-bold text-slate-950;
+  }
+
+  .location-icon {
+    @apply text-slate-500;
+  }
+
+  .location-icon.active {
+    @apply text-emerald-600;
+  }
+
+  .location-details {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-3;
+  }
+
+  .location-item .label {
+    @apply text-xs font-semibold uppercase text-slate-500;
+  }
+
+  .location-item .value {
+    @apply text-sm font-bold text-slate-950;
+  }
+
+  .location-status-badge.success {
+    @apply bg-emerald-600 text-white;
+  }
+
+  .location-error-box .error-message {
+    @apply text-sm text-red-700;
+  }
+
+  .btn-retry-location,
+  .btn-submit-attendance,
+  .btn-stop-camera {
+    @apply min-h-11 justify-center rounded-lg px-5 py-3 text-sm font-semibold text-white shadow-sm;
+  }
+
+  .btn-retry-location,
+  .btn-stop-camera {
+    @apply bg-red-600;
+    background-image: none;
+  }
+
+  .btn-retry-location:hover,
+  .btn-stop-camera:hover {
+    @apply bg-red-700 shadow-md;
+    transform: none;
+  }
+
+  .scanner-modes {
+    @apply mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2;
+  }
+
+  .mode-btn {
+    @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+  }
+
+  .mode-btn:hover:not(:disabled) {
+    @apply border-brand-100 bg-brand-50 shadow-md;
+  }
+
+  .mode-btn.active {
+    @apply border-brand-600 bg-brand-600 text-white;
+    background-image: none;
+    border-width: 1px;
+  }
+
+  .mode-btn.active .mode-icon,
+  .mode-btn.active .mode-content h3 {
+    @apply text-white;
+  }
+
+  .mode-btn.active .mode-content p {
+    @apply text-white/80;
+  }
+
+  .mode-icon {
+    @apply text-3xl text-brand-600;
+  }
+
+  .camera-view {
+    @apply mb-5;
+  }
+
+  #qr-reader {
+    @apply rounded-2xl border border-brand-100 shadow-sm;
+  }
+
+  #qr-reader video {
+    @apply rounded-2xl;
+  }
+
+  #qr-reader__dashboard_section_csr button {
+    @apply rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm;
+    background-image: none !important;
+  }
+
+  .scanning-overlay {
+    @apply rounded-2xl bg-white/95;
+  }
+
+  .scanning-loader p {
+    @apply text-sm font-semibold text-slate-700;
+  }
+
+  .scanned-code-display {
+    @apply rounded-full border border-emerald-200 bg-white px-4 py-3 shadow-lg;
+  }
+
+  .manual-entry-section {
+    @apply mb-5;
+  }
+
+  .manual-form {
+    @apply gap-4;
+  }
+
+  .input-icon {
+    @apply left-4 text-brand-600;
+  }
+
+  .qr-input {
+    @apply rounded-lg border border-slate-300 bg-white py-3 pr-4 text-sm text-slate-950 shadow-sm;
+    padding-left: 3rem;
+  }
+
+  .qr-input:focus {
+    @apply border-brand-600 shadow-sm outline-none ring-4 ring-brand-100;
+  }
+
+  .qr-input:disabled {
+    @apply bg-slate-100 text-slate-500;
+  }
+
+  .btn-submit-attendance {
+    @apply bg-brand-600;
+    background-image: none;
+  }
+
+  .btn-submit-attendance:hover:not(:disabled) {
+    @apply bg-brand-700 shadow-md;
+    transform: none;
+  }
+
+  .scanner-tips {
+    @apply gap-3;
+  }
+
+  .scanner-tip {
+    @apply border-sky-500 bg-sky-50 text-slate-700;
+  }
+
+  .scanner-tip p {
+    @apply text-sm leading-6 text-slate-700;
+  }
+
+.loading-container,
+.empty-state {
+  @apply min-h-[280px] rounded-2xl border border-slate-200 bg-white p-8 shadow-soft;
+}
+
+@media (max-width: 768px) {
+  .tab-navigation {
+    @apply flex-col;
+  }
+
+  .bar-item {
+    @apply grid-cols-1 gap-2;
+  }
+}

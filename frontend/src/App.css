@@ -565,3 +565,161 @@ body::before {
 .Toastify__progress-bar {
   background: rgba(255, 255, 255, 0.7) !important;
 }
+
+/* ============================================
+   TAILWIND MODERNIZATION LAYER
+   ============================================ */
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #0f766e 100%);
+    --secondary-gradient: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --info-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    --blue: #2563eb;
+    --purple: #2563eb;
+    --pink: #0f766e;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 10px 25px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 18px 45px rgba(15, 23, 42, 0.1);
+    --shadow-xl: 0 24px 60px rgba(15, 23, 42, 0.12);
+    --shadow-2xl: 0 30px 75px rgba(15, 23, 42, 0.14);
+}
+
+body::before {
+  display: none;
+}
+
+.btn,
+  .auth-btn,
+  .btn-primary,
+  .btn-solid,
+  .btn-outline,
+  .logout-btn,
+  .tab-btn,
+  .btn-create,
+  .create-btn,
+  .location-btn,
+  .btn-view,
+  .btn-deactivate,
+  .btn-download,
+  .close-qr-btn,
+  .mode-btn,
+  .btn-submit-attendance,
+  .btn-stop-camera,
+  .btn-retry-location {
+    @apply rounded-lg font-semibold transition-all duration-200 ease-out;
+  }
+
+  .btn:hover,
+  .auth-btn:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-solid:hover,
+  .btn-outline:hover,
+  .logout-btn:hover,
+  .btn-create:hover,
+  .create-btn:hover,
+  .location-btn:hover,
+  .btn-view:hover,
+  .btn-deactivate:hover,
+  .btn-download:hover,
+  .close-qr-btn:hover,
+  .mode-btn:hover:not(:disabled),
+  .btn-submit-attendance:hover:not(:disabled),
+  .btn-stop-camera:hover,
+  .btn-retry-location:hover {
+    @apply -translate-y-0.5 shadow-lift;
+  }
+
+  .btn:focus-visible,
+  .auth-btn:focus-visible,
+  .btn-primary:focus-visible,
+  .btn-solid:focus-visible,
+  .btn-outline:focus-visible,
+  .logout-btn:focus-visible,
+  .tab-btn:focus-visible,
+  .btn-create:focus-visible,
+  .create-btn:focus-visible,
+  .location-btn:focus-visible,
+  .btn-view:focus-visible,
+  .btn-deactivate:focus-visible,
+  .btn-download:focus-visible,
+  .close-qr-btn:focus-visible,
+  .mode-btn:focus-visible,
+  .btn-submit-attendance:focus-visible,
+  .btn-stop-camera:focus-visible,
+  .btn-retry-location:focus-visible {
+    @apply outline-none ring-4 ring-brand-100 ring-offset-2;
+  }
+
+  .card,
+  .landing-card,
+  .features,
+  .developer-card,
+  .dashboard-header,
+  .dashboard-content,
+  .stat-card,
+  .auth-card,
+  .session-form,
+  .session-form-card,
+  .session-card,
+  .scanner-card,
+  .progress-card,
+  .chart-container,
+  .chart-box,
+  .eligibility-card {
+    @apply border border-slate-200 bg-white shadow-soft;
+  }
+
+  .card:hover,
+  .landing-card:hover,
+  .developer-card:hover,
+  .dashboard-header:hover,
+  .stat-card:hover,
+  .session-card:hover,
+  .scanner-card:hover,
+  .progress-card:hover,
+  .chart-container:hover,
+  .chart-box:hover {
+    @apply shadow-lift;
+  }
+
+  .badge,
+  .status-badge,
+  .status-chip,
+  .tech-badge,
+  .qr-timer-badge,
+  .refresh-interval-badge,
+  .location-status-badge {
+    @apply rounded-full tracking-normal;
+  }
+
+  .loading-spinner,
+  .spinner,
+  .spinner-small,
+  .spinner-border {
+    @apply border-slate-200;
+    border-top-color: #2563eb;
+  }
+
+.Toastify__toast {
+  @apply border border-slate-200 bg-white text-slate-900 shadow-lift;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
